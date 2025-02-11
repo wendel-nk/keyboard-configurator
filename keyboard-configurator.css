@@ -432,7 +432,7 @@
 }
 
 .component-card__variant {
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
   color: #666;
   margin-top: 0.5rem;
@@ -535,7 +535,7 @@
   font-size: 0.75rem;
   color: #666;
   line-height: 1.2;
-  font-family: "NeuzeitOfficeSRPro-Bold";
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   padding-bottom: 5px;
 }
 
@@ -623,7 +623,7 @@
 }
 
 .option-container label {
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
   color: #000;
 }
@@ -633,7 +633,7 @@
   padding: 0.5rem 0.75rem;
   border: 1px solid #ddd;
   border-radius: 0px;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
   color: #000;
   background-color: #fff;
@@ -691,7 +691,7 @@
   -webkit-font-smoothing: antialiased;
   -webkit-text-size-adjust: 100%;
   font-size: 16px;
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
 }
 
 .quantity-input:focus {
@@ -709,7 +709,7 @@
 
 .variant-quantity {
   width: 32px;
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   font-size: 1rem;
   color: #666;
   border: none;
@@ -740,7 +740,7 @@
   width: 100%;
   padding: 0.625rem 1rem;
   border: none;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -780,7 +780,7 @@
         padding: 15px 30px;
         background-color: var(--color_button, #000);
         color: var(--color_button_text, #fff);
-        font-family: NeuzeitOfficeSRPro-Bold;
+        font-family: NeuzeitOfficeSRPro-Bold, Arial;
         font-style: normal;
         font-weight: 700;
         text-transform: uppercase;
@@ -979,13 +979,13 @@
 }
 
 .summary-total__title {
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1remrem;
   color: #000;
 }
 
 .summary-total__price {
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
   color: #000;
 }
@@ -996,7 +996,7 @@
   background: #0099db;
   color: #fff;
   border: none;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
   text-align: center;
   cursor: pointer;
@@ -1083,14 +1083,14 @@ h1, h2, h3, .configurator__title {
 }
 
 .components-price {
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   font-size: 1rem;
   color: #666;
   transition: color 0.2s ease;
 }
 
 .components-counter {
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   font-size: 1rem;
   color: #666;
   display: flex;
@@ -1194,7 +1194,7 @@ h1, h2, h3, .configurator__title {
 
 .component-card__status {
   margin-top: 0.5rem;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
 }
 
@@ -1333,7 +1333,7 @@ h1, h2, h3, .configurator__title {
   position: absolute;
   bottom: .5rem;
   right: 1rem;
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   font-size: 0.75rem;
   color: #666;
   font-style: italic;
@@ -1472,7 +1472,7 @@ h1, h2, h3, .configurator__title {
 }
 
 .toast-variant {
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   font-size: 12px;
   color: #666;
 }
@@ -1535,7 +1535,7 @@ h1, h2, h3, .configurator__title {
   background: #000;
   color: #fff;
   border: none;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
   text-align: center;
   cursor: pointer;
@@ -1585,7 +1585,7 @@ h1, h2, h3, .configurator__title {
   display: none;
   color: #0099db;
   text-decoration: none;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
   width: 100%;
   text-align: center;
@@ -1800,7 +1800,7 @@ h1, h2, h3, .configurator__title {
   background: none;
   border: none;
   padding: 0.5rem;
-  font-family: "NeuzeitOfficeSRPro-Regular";
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   opacity: 0.8;
   transition: opacity 0.2s ease;
 }
@@ -1926,7 +1926,7 @@ h1, h2, h3, .configurator__title {
 }
 
 .optional-component-title {
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   font-size: 1rem;
   color: #000;
   margin-bottom: 0.25rem;
@@ -1950,7 +1950,7 @@ h1, h2, h3, .configurator__title {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   font-size: 1rem;
   color: #666;
   flex: 1;
@@ -1965,7 +1965,7 @@ h1, h2, h3, .configurator__title {
 .optional-variant-price {
   min-width: 70px;
   text-align: right;
-  font-family: NeuzeitOfficeSRPro-Regular;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   font-size: 1rem;
   color: #666;
 }
@@ -1999,7 +1999,7 @@ h1, h2, h3, .configurator__title {
   font-size: 0.75rem;
   color: #666;
   line-height: 1.2;
-  font-family: "NeuzeitOfficeSRPro-Bold";
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   transition: opacity 0.3s ease;
@@ -2187,7 +2187,7 @@ h1, h2, h3, .configurator__title {
 
 .variant-tooltip-text {
   text-align: center;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 16px;
   opacity: 1;
 }
@@ -2267,7 +2267,7 @@ h1, h2, h3, .configurator__title {
 
 .variant-tooltip-text {
   text-align: center;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 16px;
 }
 
@@ -2307,7 +2307,7 @@ h1, h2, h3, .configurator__title {
   white-space: normal;
   pointer-events: auto;
   color: #fff;
-  font-family: NeuzeitOfficeSRPro-Bold;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   padding: 10px;
   border-radius: 5px;
   text-align: left;
@@ -2493,7 +2493,7 @@ h1, h2, h3, .configurator__title {
           position: absolute;
           bottom: .5rem;
           right: 1rem;
-          font-family: NeuzeitOfficeSRPro-Regular;
+          font-family: NeuzeitOfficeSRPro-Regular, Arial;
           font-size: 0.5rem;
           color: #666;
           font-style: italic;
@@ -2706,7 +2706,7 @@ h3,
 .summary-item__title,
 .variant-tooltip-text,
 .toast-variant {
-  font-family: "NeuzeitOfficeSRPro-Bold", "Arial", "Helvetica", "Open Sans", sans-serif;
+  font-family: NeuzeitOfficeSRPro-Bold, Arial, "Helvetica", "Open Sans", sans-serif;
 }
 
 .summary-item__variant,
@@ -2718,5 +2718,5 @@ h3,
 .option-container,
 .configuration-summary,
 .toast {
-  font-family: "NeuzeitOfficeSRPro-Regular", "Arial", "Helvetica Neue", "Verdana", sans-serif;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial, "Helvetica Neue", "Verdana", sans-serif;
 }
