@@ -1,11 +1,9 @@
 /* Main layout */
 .configurator {
   margin: 0 auto;
-  height: calc(100vh - var(--header-height, 20vh));
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  margin-top: 75px;
   width: 98vw;
   max-width: 1800px;
   transform: scale(0.92);
@@ -13,13 +11,13 @@
 }
 
 .configurator__grid {
+  margin-top: 75px;
   display: grid;
   grid-template-columns: 2.2fr 1fr;
   gap: 1.25rem;
   align-items: start;
   position: relative;
   min-width: 0;
-  height: calc(100vh - var(--header-height, 20vh) - 40px);
   overflow: auto;
 }
 
@@ -56,7 +54,6 @@
   gap: 1.25rem;
   align-items: start;
   height: 100%;
-  max-height: calc(100vh - var(--header-height, 20vh) - 80px);
   overflow: visible;
 }
 
@@ -237,9 +234,7 @@
 }
 
 .configurator__options {
-  background: var(--color-background, #000);
   border-radius: 10px;
-  border: 1px solid var(--color-border, #000);
 }
 
 /* Preview Area */
@@ -427,8 +422,10 @@
 }
 
 .component-card__title {
-  font-family: HelveticaRoundedLTWXX-Black;
-  font-size: 0.875rem;
+  font-family: "HelveticaRoundedLTWXX-Black",
+    Arial,
+    sans-serif;
+  font-size: 1rem;
   margin: 0;
   color: #000;
   text-transform: uppercase;
@@ -436,7 +433,7 @@
 
 .component-card__variant {
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #666;
   margin-top: 0.5rem;
 }
@@ -596,6 +593,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-left: 1rem;
   margin-right: 1rem;
+  background: var(--color-background, #fff);
 }
 
 .options-grid {
@@ -626,7 +624,7 @@
 
 .option-container label {
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #000;
 }
 
@@ -636,7 +634,7 @@
   border: 1px solid #ddd;
   border-radius: 0px;
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #000;
   background-color: #fff;
   cursor: pointer;
@@ -712,7 +710,7 @@
 .variant-quantity {
   width: 32px;
   font-family: NeuzeitOfficeSRPro-Regular;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #666;
   border: none;
   background: transparent;
@@ -743,7 +741,7 @@
   padding: 0.625rem 1rem;
   border: none;
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s ease;
 }
@@ -781,7 +779,7 @@
         cursor: pointer;
         padding: 15px 30px;
         background-color: var(--color_button, #000);
-        color: var(--color_button_text, #000);
+        color: var(--color_button_text, #fff);
         font-family: NeuzeitOfficeSRPro-Bold;
         font-style: normal;
         font-weight: 700;
@@ -982,13 +980,13 @@
 
 .summary-total__title {
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1remrem;
   color: #000;
 }
 
 .summary-total__price {
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #000;
 }
 
@@ -999,7 +997,7 @@
   color: #fff;
   border: none;
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1021,7 +1019,7 @@
   padding: 0.625rem 1rem;
   border: none;
   border-radius: 4px;
-  font-size: 0.875rem;
+  font-size: 1rem;
   font-weight: 500;
   text-transform: uppercase;
   cursor: pointer;
@@ -1064,7 +1062,7 @@
 
 /* Headers */
 h1, h2, h3, .configurator__title {
-  font-family: "HelveticaRoundedLTWXX-Black", "Helvetica Neue", Arial, sans-serif;
+  font-family: "HelveticaRoundedLTWXX-Black", Arial, sans-serif;
   text-transform: uppercase;
 }
 
@@ -1086,14 +1084,14 @@ h1, h2, h3, .configurator__title {
 
 .components-price {
   font-family: NeuzeitOfficeSRPro-Regular;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #666;
   transition: color 0.2s ease;
 }
 
 .components-counter {
   font-family: NeuzeitOfficeSRPro-Regular;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #666;
   display: flex;
   align-items: center;
@@ -1132,7 +1130,7 @@ h1, h2, h3, .configurator__title {
   background: none;
   border: none;
   padding: 0.5rem 0;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: var(--color-text, #000);
   opacity: 0.6;
   border-bottom: 2px solid transparent;
@@ -1197,15 +1195,14 @@ h1, h2, h3, .configurator__title {
 .component-card__status {
   margin-top: 0.5rem;
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
 }
 
 .component-navigation {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 0.75rem;
-  border-bottom: 1px solid var(--color-border, #000);
+  padding: 1rem;
 }
 
 .component-navigation__content {
@@ -1221,7 +1218,6 @@ h1, h2, h3, .configurator__title {
   display: flex;
   justify-content: center;
   background-color: #f5f5f5;
-  border-bottom: 1px solid var(--color-border, #000);
 }
 
 .component-navigation__image {
@@ -1296,6 +1292,7 @@ h1, h2, h3, .configurator__title {
   }
 
   .configurator__grid {
+    margin-top: 0;
     grid-template-columns: 1fr;
     gap: 1rem;
   }
@@ -1468,7 +1465,7 @@ h1, h2, h3, .configurator__title {
 }
 
 .toast-title {
-  font-family: HelveticaRoundedLTWXX-Black;
+  font-family: "HelveticaRoundedLTWXX-Black", Arial, sans-serif;
   text-transform: uppercase;
   font-size: 14px;
   margin-bottom: 4px;
@@ -1539,7 +1536,7 @@ h1, h2, h3, .configurator__title {
   color: #fff;
   border: none;
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
   text-align: center;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -1589,7 +1586,7 @@ h1, h2, h3, .configurator__title {
   color: #0099db;
   text-decoration: none;
   font-family: NeuzeitOfficeSRPro-Bold;
-  font-size: 0.875rem;
+  font-size: 1rem;
   width: 100%;
   text-align: center;
   margin-top: 1rem;
@@ -1835,7 +1832,7 @@ h1, h2, h3, .configurator__title {
   align-items: center;
   justify-content: center;
   font-size: 2rem;
-  font-family: "HelveticaRoundedLTWXX-Black", "Helvetica Rounded", "Arial Rounded MT Bold", Arial, sans-serif;
+  font-family: "HelveticaRoundedLTWXX-Black", Arial, sans-serif;
   color: #000;
   opacity: 0.9;
   transition: all 0.2s ease;
@@ -1930,7 +1927,7 @@ h1, h2, h3, .configurator__title {
 
 .optional-component-title {
   font-family: NeuzeitOfficeSRPro-Regular;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #000;
   margin-bottom: 0.25rem;
 }
@@ -1954,7 +1951,7 @@ h1, h2, h3, .configurator__title {
   align-items: center;
   gap: 8px;
   font-family: NeuzeitOfficeSRPro-Regular;
-  font-size: 0.875rem;
+  font-size: 1rem;
   color: #666;
   flex: 1;
 }
@@ -2343,7 +2340,7 @@ h1, h2, h3, .configurator__title {
   display: inline-block;
   /* Ensure it behaves like an inline block */
   line-height: 1;
-  font-family: HelveticaRoundedLTWXX-Black;
+  font-family: "HelveticaRoundedLTWXX-Black",Arial,sans-serif;
   /* Prevent excess spacing */
   vertical-align: top;
   /* Align with text */
@@ -2362,7 +2359,9 @@ h1, h2, h3, .configurator__title {
   display: inline-block;
   /* Ensure it behaves like an inline block */
   line-height: 1;
-  font-family: HelveticaRoundedLTWXX-Black;
+  font-family: "HelveticaRoundedLTWXX-Black",
+    Arial,
+    sans-serif;
   /* Prevent excess spacing */
   vertical-align: top;
   /* Align with text */
@@ -2695,7 +2694,7 @@ h3,
 .toast-title,
 .modal-nav button,
 .selected-component-title {
-  font-family: "HelveticaRoundedLTWXX-Black", "Arial Rounded MT Bold", "Verdana", "Trebuchet MS", sans-serif;
+  font-family: "HelveticaRoundedLTWXX-Black", Arial, sans-serif;
 }
 
 .component-card__variant,
