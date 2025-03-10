@@ -43,7 +43,6 @@
     20px 20px,
     /* Minor grid */
     20px 20px;
-  max-height: calc(100vh - var(--header-height, 20vh) - 80px);
   overflow: auto;
 }
 
@@ -119,7 +118,6 @@
   flex: 0 0 285px;
   background: var(--color_form, #fff);
   border-radius: 12px;
-  overflow: hidden;
   transition: all 0.3s ease;
   cursor: pointer;
   padding: 0.625rem;
@@ -264,7 +262,7 @@
   height: auto;
   z-index: 10;
   pointer-events: none;
-  max-height: 33%;
+  max-height: 186px;
 }
 
 .preview-image,
@@ -345,7 +343,7 @@
 }
 
 .configurator__product-description {
-  color: var(--color-text, #000);
+  color: var(--color_text, #000);
   opacity: 0.8;
   margin-bottom: 2rem;
 }
@@ -427,7 +425,7 @@
     sans-serif;
   font-size: 1rem;
   margin: 0;
-  color: #000;
+  color: var(--color_text, #000);
   text-transform: uppercase;
 }
 
@@ -533,7 +531,7 @@
   background: #f5f5f5;
   border-radius: 10px;
   font-size: 0.75rem;
-  color: #666;
+  color: var(--color_text, #666);
   line-height: 1.2;
   font-family: NeuzeitOfficeSRPro-Bold, Arial;
   padding-bottom: 5px;
@@ -593,7 +591,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-left: 1rem;
   margin-right: 1rem;
-  background: var(--color-background, #fff);
+  background: var(--color_bg, #fff);
 }
 
 .options-grid {
@@ -617,6 +615,15 @@
   margin-bottom: 0.75rem;
 }
 
+.option-container select {
+  color: var(--color_text, #000);
+}
+
+.option-container select:disabled, .mobile-option-container select:disabled {
+  background-color: var(--color_bg, #fff);
+  border-color: var(--color_form_border, #ccc);
+}
+
 .options-grid.active .option-container {
   opacity: 1;
   transform: translateY(0);
@@ -631,12 +638,12 @@
 .option-select {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #ddd;
+  border: 1px solid var(--color_form_border, #000);
   border-radius: 0px;
   font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
-  color: #000;
-  background-color: #fff;
+  color: var(--color_text, #000);
+  background-color: var(--color_bg, #fff);
   cursor: pointer;
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg width='10' height='6' viewBox='0 0 10 6' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1L5 5L9 1' stroke='black' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
@@ -806,9 +813,8 @@
 /* Configuration Summary */
 .configuration-summary {
   margin-top: 1.25rem;
-  background: #fafafa;
+  background: var(--color_bg, #fafafa);
   padding: 0.75rem;
-  border-radius: 10px;
   margin-left: 1rem;
   margin-right: 1rem;
 }
@@ -953,7 +959,7 @@
 
 /* Component separators */
 .summary-item:not(:last-child) {
-  border-bottom: 1px solid #e5e5e5;
+  border-bottom: 1px solid var(--color_form_border, #ccc);
   padding-bottom: 1rem;
   margin-bottom: 1rem;
 }
@@ -972,7 +978,7 @@
 .summary-total {
   margin-top: 2rem;
   padding-top: 1rem;
-  border-top: 2px solid #e5e5e5;
+  border-top: 2px solid var(--color_form_border, #ccc);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -980,14 +986,14 @@
 
 .summary-total__title {
   font-family: NeuzeitOfficeSRPro-Bold, Arial;
-  font-size: 1remrem;
-  color: #000;
+  font-size: 1rem;
+  color: var(--color_text, #000);
 }
 
 .summary-total__price {
   font-family: NeuzeitOfficeSRPro-Bold, Arial;
   font-size: 1rem;
-  color: #000;
+  color: var(--color_text, #000);
 }
 
 .add-to-cart-button {
@@ -1066,6 +1072,10 @@ h1, h2, h3, .configurator__title {
   text-transform: uppercase;
 }
 
+.components-header {
+  color: black;
+}
+
 .components-header-container {
   display: flex;
   align-items: center;
@@ -1131,7 +1141,7 @@ h1, h2, h3, .configurator__title {
   border: none;
   padding: 0.5rem 0;
   font-size: 1rem;
-  color: var(--color-text, #000);
+  color: black;
   opacity: 0.6;
   border-bottom: 2px solid transparent;
   cursor: pointer;
@@ -1231,7 +1241,7 @@ h1, h2, h3, .configurator__title {
   font-size: 1.25rem;
   font-weight: 500;
   margin: 0;
-  color: var(--color-text, #000);
+  color: var(--color_text, #000);
   text-align: center;
   flex: 1;
   padding: 0 1rem;
@@ -1253,7 +1263,7 @@ h1, h2, h3, .configurator__title {
   border-radius: 50%;
   cursor: pointer;
   transition: all 0.2s ease;
-  color: var(--color-text, #000);
+  color: var(--color_text, #000);
 }
 
 .nav-button:hover {
@@ -1272,17 +1282,16 @@ h1, h2, h3, .configurator__title {
 }
 
 /* Desktop Visibility */
-@media screen and (min-width: 1024px) {
+@media screen and (min-width: 768px) {
   .mobile-carousel-container {
     display: none;
   }
 }
 
 /* Mobile Styles */
-@media screen and (max-width: 1024px) {
+@media screen and (max-width: 768px) {
   .configurator__components,
-    .component-tabs,
-    .product-images {
+    .component-tabs {
       display: none;
     }
   
@@ -1352,7 +1361,7 @@ h1, h2, h3, .configurator__title {
 
 .summary-item {
   padding: 12px;
-  border-bottom: 1px solid var(--border-color, #000);
+  border-bottom: 1px solid var(--color_form_border, #000);
 }
 
 .summary-item__content {
@@ -1371,12 +1380,12 @@ h1, h2, h3, .configurator__title {
 
 .summary-item__title {
   font-weight: 600;
-  color: var(--text-color, #000);
+  color: var(--color_text, #000);
 }
 
 .summary-item__variant {
   font-size: 0.9em;
-  color: var(--text-color-secondary, #777);
+  color: var(--color_text-secondary, #777);
 }
 
 .summary-item__price-group {
@@ -1393,7 +1402,7 @@ h1, h2, h3, .configurator__title {
 }
 
 .quantity-prefix {
-  color: var(--text-color-secondary, #777);
+  color: var(--color_text-secondary, #777);
 }
 
 .variant-quantity {
@@ -1409,7 +1418,7 @@ h1, h2, h3, .configurator__title {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-color-secondary, #777);
+  color: var(--color_text-secondary, #777);
   opacity: 0.6;
   transition: opacity 0.2s ease;
 }
@@ -1421,7 +1430,7 @@ h1, h2, h3, .configurator__title {
 
 .summary-item__price {
   font-weight: 600;
-  color: var(--text-color, #000);
+  color: var(--color_text, #000);
   min-width: 80px;
   text-align: right;
 }
@@ -1434,7 +1443,7 @@ h1, h2, h3, .configurator__title {
 .summary-section__title {
   font-size: 1.1em;
   font-weight: 600;
-  color: var(--text-color, #000);
+  color: var(--color_text, #000);
   padding: 12px;
   margin: 0;
   border-bottom: 1px solid var(--border-color, #000);
@@ -1532,7 +1541,7 @@ h1, h2, h3, .configurator__title {
 .product-form__cart-submit {
   width: 100%;
   padding: 0.625rem 1rem;
-  background: #000;
+  background: var(--color_button, #000);
   color: #fff;
   border: none;
   font-family: NeuzeitOfficeSRPro-Bold, Arial;
@@ -1573,7 +1582,7 @@ h1, h2, h3, .configurator__title {
 }
 
 .cart-actions {
-  margin-top: 1rem;
+  margin-top: .25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1583,6 +1592,7 @@ h1, h2, h3, .configurator__title {
 
 .view-cart-link {
   display: none;
+  visibility: hidden;
   color: #0099db;
   text-decoration: none;
   font-family: NeuzeitOfficeSRPro-Bold, Arial;
@@ -1690,6 +1700,7 @@ h1, h2, h3, .configurator__title {
 .product-images {
   margin-top: 2rem;
   border-radius: 12px;
+  margin-bottom: 50px;
 }
 
 .product-thumbnails {
@@ -2017,11 +2028,6 @@ h1, h2, h3, .configurator__title {
   text-decoration: line-through;
 }
 
-.summary-item {
-  padding: 12px;
-  border-bottom: 1px solid var(--border-color, #000);
-}
-
 .summary-item__content {
   display: flex;
   justify-content: space-between;
@@ -2038,12 +2044,12 @@ h1, h2, h3, .configurator__title {
 
 .summary-item__title {
   font-weight: 600;
-  color: var(--text-color, #000);
+  color: var(--color_text, #000);
 }
 
 .summary-item__variant {
   font-size: 0.9em;
-  color: var(--text-color-secondary, #777);
+  color: var(--color_text-secondary, #777);
 }
 
 .summary-item__price-group {
@@ -2060,7 +2066,7 @@ h1, h2, h3, .configurator__title {
 }
 
 .quantity-prefix {
-  color: var(--text-color-secondary, #777);
+  color: var(--color_text-secondary, #777);
 }
 
 .variant-quantity {
@@ -2076,7 +2082,7 @@ h1, h2, h3, .configurator__title {
   background: none;
   border: none;
   cursor: pointer;
-  color: var(--text-color-secondary, #777);
+  color: var(--color_text-secondary, #777);
   opacity: 0.6;
   transition: opacity 0.2s ease;
 }
@@ -2088,7 +2094,7 @@ h1, h2, h3, .configurator__title {
 
 .summary-item__price {
   font-weight: 600;
-  color: var(--text-color, #000);
+  color: var(--color_text, #000);
   min-width: 80px;
   text-align: right;
 }
@@ -2101,10 +2107,10 @@ h1, h2, h3, .configurator__title {
 .summary-section__title {
   font-size: 1.1em;
   font-weight: 600;
-  color: var(--text-color, #000);
+  color: var(--color_text, #000);
   padding: 12px;
   margin: 0;
-  border-bottom: 1px solid var(--border-color, #000);
+  border-bottom: 1px solid var(--color_form_border, #000);
 }
 
 /* Optional components empty state */
@@ -2117,7 +2123,7 @@ h1, h2, h3, .configurator__title {
 
 /* Pending selection state */
 .summary-item__variant.pending {
-  color: #666;
+  color: var(--color_text-secondary, #2C2C2C);
   font-style: italic;
 }
 
@@ -2307,12 +2313,12 @@ h1, h2, h3, .configurator__title {
   white-space: normal;
   pointer-events: auto;
   color: #fff;
-  font-family: NeuzeitOfficeSRPro-Bold, Arial;
   padding: 10px;
   border-radius: 5px;
   text-align: left;
   line-height: 1.3;
-  font-size: 1rem;
+  font-size: 16px;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
 }
 
 .tooltip-card {
@@ -2332,15 +2338,15 @@ h1, h2, h3, .configurator__title {
 .tooltip-badge{
   background-color: #fff;
   color: #0099db;
-  font-size: 0.65rem;
+  font-size: 16px;
   text-transform: lowercase;
   padding: 3px 3px;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
   /* Adjust padding to balance size */
   border-radius: 4px;
   display: inline-block;
   /* Ensure it behaves like an inline block */
   line-height: 1;
-  font-family: "HelveticaRoundedLTWXX-Black",Arial,sans-serif;
   /* Prevent excess spacing */
   vertical-align: top;
   /* Align with text */
@@ -2351,7 +2357,7 @@ h1, h2, h3, .configurator__title {
 .conflict-suggestion-button {
   background-color: #fff;
   color: #0099db;
-  font-size: 0.7rem;
+  font-size: 16px;
   text-transform: lowercase;
   padding: 5px 5px;
   /* Adjust padding to balance size */
@@ -2359,9 +2365,6 @@ h1, h2, h3, .configurator__title {
   display: inline-block;
   /* Ensure it behaves like an inline block */
   line-height: 1;
-  font-family: "HelveticaRoundedLTWXX-Black",
-    Arial,
-    sans-serif;
   /* Prevent excess spacing */
   vertical-align: top;
   /* Align with text */
@@ -2438,8 +2441,19 @@ h1, h2, h3, .configurator__title {
   opacity: 1;
 }
 
+@media (max-width: 1200px) {
+    .configurator__grid {
+        grid-template-columns: 1fr;
+    }
+    .configurator__info {
+      grid-column: 1;
+      grid-row: 2;
+    }
+}
+
+
 /*MOBILE STYLES*/
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
 .configurator__grid {
     grid-template-columns: 1fr;
     /* Stack content */
@@ -2448,9 +2462,10 @@ h1, h2, h3, .configurator__title {
     overflow: visible !important;
     /* Prevent hidden content */
   }
+
+  
   /* Hide desktop parts */
   .configurator__info,
-  .product-images,
   .component-tabs {
     display: none !important;
   }
@@ -2465,7 +2480,7 @@ h1, h2, h3, .configurator__title {
     .preview-product-logo {
       top: 0.75rem !important;
         left: 0.75rem !important;
-        max-height: 80%;
+        max-height: 186px;
         max-width: 10%;
         position: absolute;
         transition: top 0.2s ease, left 0.2s ease;
@@ -2509,6 +2524,10 @@ h1, h2, h3, .configurator__title {
     .unpinning {
       transform: scale(1);
       opacity: 0;
+    }
+
+    .grid-uniform {
+      grid-template-columns: 1fr;
     }
 
     .configurator__preview img:not(:first-child) {
@@ -2559,8 +2578,8 @@ h1, h2, h3, .configurator__title {
   width: 300px;
   margin-left: -150px;
   /* half the width to center it */
-  background: #fff;
-  border: 1px solid #ddd;
+  background: var(--color_bg, #fff);
+  border: 1px solid var(--color_form_border, #fff);
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   text-align: center;
@@ -2607,6 +2626,10 @@ h1, h2, h3, .configurator__title {
     text-align: left;
   }
 
+  .mobile-card-options .option-container{
+      margin-bottom: 0;
+    }
+
   .mobile-option-container label {
     font-size: 0.9rem;
     font-weight: 500;
@@ -2629,8 +2652,10 @@ h1, h2, h3, .configurator__title {
     margin-top: .5rem;;
     margin-left: .5rem;
       margin-right: .5rem;
-    margin-bottom: 10px;
+    margin-bottom: 0px;
     filter: drop-shadow(0px 2px 4px rgba(0, 0, 0, 0.15));
+    border-radius: 10px 10px 0 0;
+    border-bottom: none !important;
   }
   .summary-header{
     margin-bottom: 0;
@@ -2719,4 +2744,212 @@ h3,
 .configuration-summary,
 .toast {
   font-family: NeuzeitOfficeSRPro-Regular, Arial, "Helvetica Neue", "Verdana", sans-serif;
+}
+
+.icon-sold-out {
+  position: relative;
+  cursor: pointer;
+}
+
+.icon-sold-out::after {
+  content: 'This variant is sold out.';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: var(--color_disclaimer_text, #000);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 14px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease-in-out;
+  z-index: 100;
+  pointer-events: none;
+  margin-bottom: 8px;
+  font-family: NeuzeitOfficeSRPro-Regular, Arial;
+}
+
+.icon-sold-out:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.icon-sold-out::before {
+  content: '';
+  position: absolute;
+  bottom: calc(100% - 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 8px solid transparent;
+  border-top-color: var(--color_disclaimer_text, #000);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s ease-in-out;
+  pointer-events: none;
+}
+
+.icon-sold-out:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.incomplete-build-warning {
+  position: relative;
+  color: #f0ad4e;
+  margin-left: 4px;
+  font-size: 24px;
+  vertical-align: middle;
+}
+
+.incomplete-build-warning::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.incomplete-build-warning::before {
+  content: "This configuration does not include all the components needed for a fully assembled keyboard. If you’re just purchasing individual parts, you can proceed.";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%);
+  background: var(--color_disclaimer_text, #000);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 18px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  max-width: 350px;
+  width: max-content;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .2s ease-in-out;
+  pointer-events: none;
+  margin-bottom: 8px;
+  font-family: NeuzeitOfficeStdPro-Regular, Arial;
+}
+
+.incomplete-build-warning:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.components-grid {
+  cursor: grab;
+  overflow-x: auto;
+  user-select: none;
+  /* Prevents text selection during drag */
+}
+
+.components-grid.grabbing {
+  cursor: grabbing;
+}
+
+.conflict-warning {
+  position: relative;
+  color: #f0ad4e;
+  margin-left: 4px;
+  font-size: 24px;
+  vertical-align: middle;
+}
+
+.conflict-warning::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.conflict-warning::before {
+  content: "There are conflicting components in your configuration. If you already own the required parts or are just shopping for extras, you can proceed.";
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translate(-50%);
+  background: var(--color_disclaimer_text, #000);
+  color: #fff;
+  padding: 12px 16px;
+  border-radius: 6px;
+  font-size: 18px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+  max-width: 350px;
+  width: max-content;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .2s ease-in-out;
+  pointer-events: none;
+  margin-bottom: 8px;
+  font-family: NeuzeitOfficeStdPro-Regular, Arial;
+}
+
+.conflict-warning:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
+
+.configurator-description{
+  margin-left: 1rem;
+  margin-bottom: 25px;
+}
+
+.configurator-specs{
+  border-top: 1px solid var(--color_form_border, #ccc);
+  border-bottom: 1px solid var(--color_form_border, #ccc);
+  padding-top: 1rem;
+  margin-left: 1rem;
+  margin-right: 1rem;
+  padding: .75rem;
+  margin-top: 1rem;
+}
+
+.configurator-specs .summary-header h2 {
+  margin: 0;
+  display: flex;
+  align-items: center;
+}
+
+.configurator-specs .summary-header{
+  display: flex;
+    align-items: center;
+  margin-bottom: 0;
+}
+
+.configurator-specs li{
+  list-style-type: disc;
+  margin-left: 1.5em;
+
+}
+
+.configurator-specs .specs-content {
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.configurator-specs .summary-header[aria-expanded="true"] .chevron-icon {
+  transform: rotate(180deg);
+}
+
+.configurator-specs .summary-header:hover .chevron-icon {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.clarifying-text {
+  font-weight: normal;
+  font-style: italic;
+  font-size: 0.9em;
+}
+
+.info-modal-button {
+  position: relative;
+  color: var(--color_secondary, #777);
+  margin-left: 4px;
+  font-size: 18px;
+  vertical-align: middle;
+  cursor: help;
 }
