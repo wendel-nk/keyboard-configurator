@@ -2952,4 +2952,10 @@ h3,
   font-size: 18px;
   vertical-align: middle;
   cursor: help;
+}estimated-arrival {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
 }
