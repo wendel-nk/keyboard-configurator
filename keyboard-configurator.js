@@ -47,9 +47,23 @@ constructor() {
 }
 
   init() {
+    // Initialize all required properties
+    this.selectedVariants = new Map();
+    this.completedRequiredComponents = 0;
+    this.totalRequiredComponents = this.components.filter(c => c.required).length;
+    this.selectedOptionalComponents = new Map();
+
+    // Initialize preorder checkbox listener if it exists
+    const preorderCheckbox = document.querySelector('#cb');
+    if (preorderCheckbox) {
+        preorderCheckbox.addEventListener('change', () => {
+            const hasConflict = this.hasComponentConflicts();
+            const missingRequired = this.completedRequiredComponents < this.totalRequiredComponents;
+            this.updateAddToCartButton(hasConflict, missingRequired);
+        });
+    }
+
     // Load configurator data
-    this.totalRequiredComponents = this.components.filter(component => component.required).length;
-    
     // Initialize counter
     this.counterTotal.textContent = this.totalRequiredComponents;
     this.counterCurrent.textContent = '0';
@@ -2029,6 +2043,7 @@ updateAllComponentStatuses() {
 
     if (this.checkIsMobile()) {
       const specsAccordion = document.querySelector('.configurator-specs');
+      const configDescription = document.querySelector('.configurator-description');
       if (specsAccordion) {
         // Move the specs accordion after the mobile carousel container
         if (carouselContainer && carouselContainer.parentNode) {
@@ -2038,6 +2053,9 @@ updateAllComponentStatuses() {
           }
         }
       }
+      if (configDescription) {
+  carouselContainer.parentNode.insertBefore(configDescription, carouselContainer.nextSibling);
+}
     }
 
       // 6. Re-evaluate conflicts and update the summary
@@ -2565,6 +2583,7 @@ updateAllComponentStatuses() {
   updateAddToCartButton(hasConflict, missingRequiredComponents) {
   const addToCartButton = document.querySelector('.add-to-cart-button');
   const warningIconContainer = document.querySelector('.add-to-cart-warning');
+  const preorderEnabled = document.querySelector('#cb') !== null;
   if (!addToCartButton) return;
 
   // Check for sold out components
@@ -2578,10 +2597,17 @@ updateAllComponentStatuses() {
     });
   });
 
+  // Check preorder agreement if enabled
+  const preorderAgreed = preorderEnabled ? document.querySelector('#cb').checked : true;
+
   if (hasSoldOutComponents) {
     addToCartButton.disabled = true;
     addToCartButton.classList.add('disabled');
     addToCartButton.textContent = 'Contains Sold Out Components';
+  } else if (preorderEnabled && !preorderAgreed) {
+    addToCartButton.disabled = true;
+    addToCartButton.classList.add('disabled');
+    addToCartButton.textContent = 'Please Accept Preorder Agreement';
   } else {
     addToCartButton.disabled = false;
     addToCartButton.classList.remove('disabled');
@@ -2916,8 +2942,12 @@ updateAllComponentStatuses() {
         // Get existing entry or create new one
         const existingEntry = combinedVariants.get(v.id) || {
           id: v.id,
-          quantity: 0,
-          properties: {
+          quantity: 0
+        };
+
+        // Only add properties if the setting is enabled
+        if (this.data.add_line_item_properties) {
+          existingEntry.properties = {
             '_Bundle Type': 'keyboard_config',
             '_Bundle ID': bundleId,
             '_Parent Product': this.parentProductTitle,
@@ -2925,8 +2955,18 @@ updateAllComponentStatuses() {
             '_Layer Image': componentImage || '',
             '_Layer Index': component.layer_index || 0,
             '_Layer Images': layerImages.join('|') || ''
+          };
+
+          // Add variant options as properties
+          if (v.options) {
+            v.options.forEach((value, index) => {
+              const optionName = component.options[index]?.name;
+              if (optionName) {
+                existingEntry.properties[`_option_${optionName.toLowerCase()}`] = value;
+              }
+            });
           }
-        };
+        }
 
         // Add quantity (default to 1 for required components)
         existingEntry.quantity += v.quantity || 1;
@@ -3240,3 +3280,13 @@ infoTooltips.forEach(tooltip => {
     //#endregion
   });
 //#endregion
+
+window.toggleEnabledCart = function(checkbox) {
+    if (window.ProductConfigurator) {
+        window.ProductConfigurator.updateAddToCartButton(false, false);
+    }
+};
+
+ProductConfigurator.prototype.hasComponentConflicts = function() {
+  return false; // Since we don't need to check for conflicts, always return false
+};
