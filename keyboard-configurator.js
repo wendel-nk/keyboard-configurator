@@ -21,6 +21,8 @@ constructor() {
     this.selectedVariant = null; // Store the selected variant
     this.quantities = new Map(); // Track quantities for optional components
     this.isMobileLayout = this.checkIsMobile();
+    this.currencySymbol = (this.data && this.data.currencySymbol) ? this.data.currencySymbol : '$';
+    
     // Carousel-related properties
     this.carouselIndex = 0;      // which card is currently “in front”
     this.carouselCards = [];     // array of DOM elements for each component card
@@ -58,7 +60,7 @@ constructor() {
     if (preorderCheckbox) {
         preorderCheckbox.addEventListener('change', () => {
             const hasConflict = this.hasComponentConflicts();
-            const missingRequired = this.completedRequiredComponents < this.totalRequiredComponents;
+            const missingRequired = this.getCompletedRequiredCount() < this.totalRequiredComponents;
             this.updateAddToCartButton(hasConflict, missingRequired);
         });
     }
@@ -393,7 +395,13 @@ initializeConfiguratorSummary() {
     const requiredSection = document.createElement('div');
     requiredSection.className = 'summary-section required-components';
     requiredSection.innerHTML = `
-      <h3 class="summary-section__title">Essential Components</h3>
+      <h3 class="summary-section__title">Essential Components
+        <span class="info-tooltip" data-tooltip="Essential components are the parts needed for a complete build, but you can purchase individual parts separately if desired.">
+          <svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
+            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+          </svg>
+        </span>
+      </h3>
       <div class="summary-items">
         ${this.components
           .filter(component => component.required)
@@ -424,7 +432,7 @@ initializeConfiguratorSummary() {
                     </button>` : ''}
                   </div>
                   <div class="summary-item__price-group">
-                    <div class="summary-item__price">${this.selectedVariants.get(component.handle) ? '$' + (this.selectedVariants.get(component.handle).price / 100).toFixed(2) : '—'}</div>
+                    <div class="summary-item__price">${this.selectedVariants.get(component.handle) ? `${this.currencySymbol}${(this.selectedVariants.get(component.handle).price / 100).toFixed(2)}` : '—'}</div>
                   </div>
                 </div>
               </div>
@@ -461,7 +469,7 @@ initializeConfiguratorSummary() {
     totalSection.className = 'summary-total';
     totalSection.innerHTML = `
       <div class="summary-total__title">Total</div>
-      <div class="summary-total__price">$0.00</div>
+      <div class="summary-total__price">${this.currencySymbol}0.00</div>
     `;
 
     const cartActions = document.createElement('div');
@@ -851,10 +859,10 @@ selectComponent(handle, force = false) {
     let labelText = currentOptionValue;
     if (minPriceAll === maxPriceAll) {
       // Single price
-      labelText += ` - $${(minPriceAll / 100).toFixed(2)}`;
+      labelText += ` - ${this.currencySymbol}${(minPriceAll / 100).toFixed(2)}`;
     } else {
       // Range of prices
-      labelText += ` - $${(minPriceAll / 100).toFixed(2)} - $${(maxPriceAll / 100).toFixed(2)}`;
+      labelText += ` - ${this.currencySymbol}${(minPriceAll / 100).toFixed(2)} - ${this.currencySymbol}${(maxPriceAll / 100).toFixed(2)}`;
     }
 
     if (allSoldOut) {
@@ -1123,7 +1131,7 @@ getMatchingVariantFromSelections(selectedOptions) {
                 </button>` : ''}
               </div>
               <div class="summary-item__price-group">
-                <div class="summary-item__price">${variant ? '$' + (variant.price / 100).toFixed(2) : '—'}</div>
+                <div class="summary-item__price">${variant ? `${this.currencySymbol}${(variant.price / 100).toFixed(2)}` : '—'}</div>
               </div>
             </div>
           </div>
@@ -1194,7 +1202,7 @@ getMatchingVariantFromSelections(selectedOptions) {
                       ${isSoldOut ? 'disabled' : ''}
                     >
                   </div>
-                  <div class="summary-item__price">$${(variantPrice / 100).toFixed(2)}</div>
+                  <div class="summary-item__price">${this.currencySymbol}${(variantPrice / 100).toFixed(2)}</div>
                 </div>
               </div>
             </div>
@@ -1236,7 +1244,7 @@ getMatchingVariantFromSelections(selectedOptions) {
 
     const totalElement = summaryContainer.querySelector('.summary-total__price');
     if (totalElement) {
-      totalElement.textContent = `$${(total / 100).toFixed(2)}`;
+      totalElement.textContent = `${this.currencySymbol}${(total / 100).toFixed(2)}`;
     }
 
     const hasItems = total > 0;
@@ -1460,7 +1468,7 @@ getMatchingVariantFromSelections(selectedOptions) {
           });
 
           
-          if (this.completedRequiredComponents >= this.totalRequiredComponents && !hasSoldOutVariants) {
+          if (this.getCompletedRequiredCount() >= this.totalRequiredComponents && !hasSoldOutVariants) {
             addToCartButton.classList.remove('disabled');
             addToCartButton.disabled = false;
             addToCartButton.textContent = 'Add to Cart';
@@ -1521,7 +1529,6 @@ getCompletedRequiredCount() {
 }
 
 updateAllComponentStatuses() {
-
   this.components.forEach((component) => {
     const handle = component.handle;
     const optionalHandle = `${handle}-optional`;
@@ -1536,12 +1543,14 @@ updateAllComponentStatuses() {
     }
   });
 
+  // Update the completed count and sync it with the instance variable
   const completedCount = this.getCompletedRequiredCount();
+  this.completedRequiredComponents = completedCount;
     
   // Update the visual counter
-    if (this.counterCurrent) {
+  if (this.counterCurrent) {
     this.counterCurrent.textContent = completedCount;
-    }
+  }
     
   // Re-check conflicts (if necessary)
   this.evaluateConflicts();
@@ -1829,7 +1838,7 @@ updateAllComponentStatuses() {
                   data-variant-id="${variant.id}"
                 >
               </div>
-              <div class="optional-variant-price">$${(variantPrice / 100).toFixed(2)}</div>
+              <div class="optional-variant-price">${this.currencySymbol}${(variantPrice / 100).toFixed(2)}</div>
             </div>
           </div>
         `;
@@ -1871,7 +1880,7 @@ updateAllComponentStatuses() {
     const priceElement = summaryItem.querySelector('.summary-item__price');
     if (priceElement) {
       const price = variant.price * newQuantity;
-      priceElement.textContent = `$${(price / 100).toFixed(2)}`;
+      priceElement.textContent = `${this.currencySymbol}${(price / 100).toFixed(2)}`;
     }
   }
 
