@@ -5,6 +5,9 @@ class ProductConfigurator {
 constructor() {
   this.data = JSON.parse(document.getElementById('configurator-data').textContent);
 
+  console.log('💾 Loaded configurator-data:', this.data);
+  console.log('🔧 Parsed conflicts:', this.data.conflicts);
+
     this.parentProductTitle = this.data.parentProductTitle;
     this.components = this.data.components;
     this.conflicts = this.data.conflicts || []; // **Add this line**
@@ -21,7 +24,8 @@ constructor() {
     this.selectedVariant = null; // Store the selected variant
     this.quantities = new Map(); // Track quantities for optional components
     this.isMobileLayout = this.checkIsMobile();
-    this.currencySymbol = (this.data && this.data.currencySymbol) ? this.data.currencySymbol : '$';
+  this.currencySymbol = (this.data && this.data.currencySymbol) ? this.data.currencySymbol : '$';
+  this.preorderStatus = this.data.preorderStatus || 'live';
     
     // Carousel-related properties
     this.carouselIndex = 0;      // which card is currently “in front”
@@ -30,10 +34,7 @@ constructor() {
     this.carouselStartX = 0;     // initial X for swipe
     this.carouselCurrentX = 0;   // current X for swipe
     
-    this.counterTotal = document.querySelector('.counter-total');
-  this.counterCurrent = document.querySelector('.counter-current');
-  
-    this.initialIsMobile = this.checkIsMobile();;
+    this.initialIsMobile = this.checkIsMobile();
     
     // Set up event delegation for quantity changes
     document.addEventListener('input', (e) => {
@@ -44,6 +45,8 @@ constructor() {
   
   this.conflictBadges = new Map();
   this.preloadedImages = new Set();
+
+  document.getElementById('apply-config-button')?.addEventListener('click', () => this.applyConfig());
 
   this.init();
 }
@@ -66,9 +69,6 @@ constructor() {
     }
 
     // Load configurator data
-    // Initialize counter
-    this.counterTotal.textContent = this.totalRequiredComponents;
-    this.counterCurrent.textContent = '0';
 
     // Initialize the configurator
     this.initializeComponentTabs();
@@ -100,10 +100,7 @@ constructor() {
       });
     }
 
-    // Select first component
-    if (this.components.length > 0) {
-      this.selectComponent(this.components[0].handle);
-    }
+    
 
     // Add navigation button listeners
     const prevButton = document.querySelector('.prev-component');
@@ -163,6 +160,12 @@ constructor() {
         }
       });
     }
+    const activeTab = document.querySelector('.tab-button.active');
+if (activeTab) activeTab.click();
+
+    const hasConflict = this.hasComponentConflicts();
+    const missingRequired = this.getCompletedRequiredCount() < this.totalRequiredComponents;
+    this.updateAddToCartButton(hasConflict, missingRequired);
   }
 
   preloadAllVariantImages() {
@@ -268,77 +271,37 @@ constructor() {
     }
 
     // Add event delegation for remove-optional buttons in configuration summary
-    document.addEventListener('click', (e) => {
-      if (e.target.closest('.remove-optional')) {
-        const button = e.target.closest('.remove-optional');
-        const handle = button.dataset.handle;
-        const variantId = parseInt(button.dataset.variantId);
-        
-        // Check if this is an optional component (handle ends with -optional)
-        const isOptional = button.closest('.optional-item') !== null;
-        
-        if (isOptional) {
-          const optionalHandle = `${handle}-optional`;
-          
-          // Get existing variants
-          const variants = this.selectedVariants.get(optionalHandle);
-          if (!variants) return;
-          
-          // Remove the variant with matching ID
-          const variantsArray = Array.isArray(variants) ? variants : [variants];
-          const updatedVariants = variantsArray.filter(v => v.id !== variantId);
-          
-          if (updatedVariants.length === 0) {
-            // If no variants left, remove the component entirely
-            this.selectedVariants.delete(optionalHandle);
-          } else {
-            // Update with remaining variants
-            this.selectedVariants.set(optionalHandle, updatedVariants);
-          }
-          
-          // Update UI
-          this.updateConfiguratorSummary();
-          this.updateTotalPrice();
-          this.updateAllComponentStatuses();
-          this.evaluateConflicts();
-        } else {
-          // This is a required component
-          const component = this.components.find(c => c.handle === handle);
-          if (component) {
-            // Store the component before removing it from configuration
-            const componentToReset = {...component};
-            
-            // Remove the component from configuration
-            this.selectedVariants.delete(handle);
-            
-            // Update UI
-            this.updateConfiguratorSummary();
-            this.updateTotalPrice();
-            this.updateAllComponentStatuses();
-            this.evaluateConflicts();
-            
-            // Reset the component card UI
-            this.resetComponentCard(componentToReset);
-            
-            // Reset the status badge
-            const card = document.querySelector(`.component-card[data-component-id="${componentToReset.handle}"]`);
-            if (card) {
-              const statusBadge = card.querySelector('.status-badge');
-              if (statusBadge) {
-                const checkboxIcon = statusBadge.querySelector('.material-symbols-outlined');
-                if (checkboxIcon) {
-                  checkboxIcon.textContent = 'check_box_outline_blank';
-                }
-                card.classList.remove('configured');
-              }
-            }
-            
-            // Show toast notification
-            this.showToast(`${componentToReset.title} removed`, 'info');
-          }
-        }
-      }
-    });
+    // Unified “remove any variant” handler
+document.addEventListener('click', (e) => {
+  // see if we clicked on a remove button (or child of one)
+  const btn = e.target.closest('.remove-optional');
+  if (!btn) return;
+
+  // *** DEBUGGING ***
+  console.log('🔥 remove-optional clicked!', {
+    handle: btn.dataset.handle,
+    variantId: btn.dataset.variantId
+  });
+
+  // now the real work
+  const handle    = btn.dataset.handle;
+  const variantId = parseInt(btn.dataset.variantId, 10);
+  const current   = this.selectedVariants.get(handle) || [];
+  const updated   = current.filter(v => v.id !== variantId);
+
+  if (updated.length) {
+    this.selectedVariants.set(handle, updated);
+  } else {
+    this.selectedVariants.delete(handle);
+  }
+
+  this.updateConfiguratorSummary();
+  this.updateTotalPrice();
+  this.updateAllComponentStatuses();
+  this.evaluateConflicts();
+});
+
+
 
     document.addEventListener('click', (e) => {
       const button = e.target.closest('.conflict-suggestion-button');
@@ -391,61 +354,11 @@ initializeConfiguratorSummary() {
     const content = document.createElement('div');
     content.className = 'summary-content';
 
-    // Required Components Section
-    const requiredSection = document.createElement('div');
-    requiredSection.className = 'summary-section required-components';
-    requiredSection.innerHTML = `
-      <h3 class="summary-section__title">Essential Components
-        <span class="info-tooltip" data-tooltip="Essential components are the parts needed for a complete build, but you can purchase individual parts separately if desired.">
-          <svg class="info-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16">
-            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
-          </svg>
-        </span>
-      </h3>
-      <div class="summary-items">
-        ${this.components
-          .filter(component => component.required)
-          .map(component => `
-            <div class="summary-item required-item" data-component="${component.handle}">
-              <div class="summary-item__content">
-                <h4 class="summary-item__title">
-                  ${this.formatComponentTitle(component.title)}
-                  ${component.clarifying_text ? ` <span class="clarifying-text">(${component.clarifying_text})</span>` : ''}
-                </h4>
-                <div class="summary-item__variant-row">
-                  <div class="summary-item__variant-group">
-                    <div class="summary-item__variant-wrapper">
-                      <div data-variant-id="${this.selectedVariants.get(component.handle)?.id || ''}" class="summary-item__variant ${this.selectedVariants.get(component.handle) ? 'selected' : 'pending'}">
-                        ${this.selectedVariants.get(component.handle) ? this.selectedVariants.get(component.handle).title : 'Pending Selection'}
-                        ${this.selectedVariants.get(component.handle) && !this.selectedVariants.get(component.handle).available ? `
-                          <span class="material-symbols-outlined icon-sold-out" style="color: #dc3545; margin-left: 4px; font-size: 24px; vertical-align: middle;">
-                            error
-                          </span>
-                        ` : ''}
-                      </div>
-                    </div>
-                    ${this.selectedVariants.get(component.handle) ? `
-                    <button class="remove-optional" data-handle="${component.handle}" data-variant-id="${this.selectedVariants.get(component.handle)?.id}">
-                      <svg viewBox="0 0 24 24" width="16" height="16">
-                        <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                      </svg>
-                    </button>` : ''}
-                  </div>
-                  <div class="summary-item__price-group">
-                    <div class="summary-item__price">${this.selectedVariants.get(component.handle) ? `${this.currencySymbol}${(this.selectedVariants.get(component.handle).price / 100).toFixed(2)}` : '—'}</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          `).join('')}
-      </div>
-    `;
-
     // Optional Components Section
     const optionalSection = document.createElement('div');
     optionalSection.className = 'summary-section optional-components';
     optionalSection.innerHTML = `
-      <h3 class="summary-section__title">Additional Components</h3>
+      <h3 class="summary-section__title">Components</h3>
       <div class="summary-items">
         <div class="summary-item optional-item">
           <div class="summary-item__content">
@@ -458,7 +371,6 @@ initializeConfiguratorSummary() {
     `;
 
     // Append to collapsible content
-    content.appendChild(requiredSection);
     content.appendChild(optionalSection);
 
     // Create Sticky Footer Section (Total + Add to Cart)
@@ -996,24 +908,22 @@ updateOptionsContent(container, context = "desktop") {
   }
 
   // NEW: Restore "Add to Configuration" button for optional components
-  if (this.selectedComponent.isOptionalSelection) {
+  if (this.preorderStatus === 'live') {
       const applyButton = document.createElement("button");
       applyButton.textContent = "Add to Configuration";
-    applyButton.className = "apply-selection-button";
-    //get current values of selected options and check if they make a valid variant. if so, add to button not disabled
-    const selectedOptions = Array.from(container.querySelectorAll('select')).map(select => select.value);
-    applyButton.disabled = !this.isValidVariant(selectedOptions);
-      
+      applyButton.className = "apply-selection-button";
+
+      const selectedOptions = Array.from(container.querySelectorAll('select')).map(select => select.value);
+      applyButton.disabled = !this.isValidVariant(selectedOptions);
+
       applyButton.addEventListener("click", () => {
           if (this.checkIsMobile()) {
-              // For mobile, container is inside the mobile card; find the card element
               const card = container.closest('.mobile-component-card');
               this.applySelection(applyButton, card);
           } else {
-              // For desktop, container is the desktop options container
               this.applySelection(applyButton, container);
           }
-          applyButton.textContent = "Added to Configuration";
+          applyButton.textContent = "Add to configuration";
       });
       container.appendChild(applyButton);
   }
@@ -1086,149 +996,81 @@ getMatchingVariantFromSelections(selectedOptions) {
     }
   }
   updateConfiguratorSummary() {
-    
-    // Get existing sections
-    const requiredSection = document.querySelector('.required-components .summary-items');
-    const optionalSection = document.querySelector('.optional-components .summary-items');
-    
-    if (!requiredSection || !optionalSection) {
-      return;
-    }
+  const componentsList = document.querySelector('.optional-components .summary-items');
+  if (!componentsList) return;
 
-    // Update required components
-    let requiredHtml = '';
-    const requiredComponents = this.components.filter(component => component.required);
-    
-    requiredComponents.forEach(component => {
-      const variant = this.selectedVariants.get(component.handle);
-      
-      const isSoldOut = variant && !variant.available;
+  let html = '';
 
-      requiredHtml += `
-        <div class="summary-item required-item" data-component="${component.handle}">
-          <div class="summary-item__content">
-            <h4 class="summary-item__title">
-              ${this.formatComponentTitle(component.title)}
-              ${component.clarifying_text ? ` <span class="clarifying-text">(${component.clarifying_text})</span>` : ''}
-            </h4>
-            <div class="summary-item__variant-row">
-              <div class="summary-item__variant-group">
-                <div class="summary-item__variant-wrapper">
-                  <div data-variant-id="${variant && variant.id}" class="summary-item__variant ${variant ? 'selected' : 'pending'}">
-                    ${variant ? variant.title : 'Pending Selection'}
-                    ${isSoldOut ? `
-                      <span class="material-symbols-outlined icon-sold-out" style="color: #dc3545; margin-left: 4px; font-size: 24px; vertical-align: middle;">
-                        error
-                      </span>
-                    ` : ''}
-                  </div>
-                </div>
-                ${variant ? `
-                <button class="remove-optional" data-handle="${component.handle}" data-variant-id="${variant.id}">
-                  <svg viewBox="0 0 24 24" width="16" height="16">
-                    <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                  </svg>
-                </button>` : ''}
-              </div>
-              <div class="summary-item__price-group">
-                <div class="summary-item__price">${variant ? `${this.currencySymbol}${(variant.price / 100).toFixed(2)}` : '—'}</div>
-              </div>
+  // Loop per component handle
+  this.selectedVariants.forEach((variants, handle) => {
+    const component = this.components.find(c => c.handle === handle.replace(/-optional$/, ''));
+    if (!component) return;
+
+    // Normalize to array
+    const variantsArray = Array.isArray(variants) ? variants : [variants];
+
+    // Start one block per component
+    html += `
+      <div class="summary-item optional-item" data-component="${handle}">
+        <div class="summary-item__content">
+          <h4 class="summary-item__title">
+            ${this.formatComponentTitle(component.title)}
+          </h4>
+    `;
+
+    // Then one row per variant
+    variantsArray.forEach(variant => {
+      const qty = variant.quantity || 1;
+      const price = (variant.price * qty / 100).toFixed(2);
+      const soldOutClass = variant.available ? '' : ' icon-sold-out';
+      html += `
+          <div class="summary-item__variant-row" data-variant-id="${variant.id}">
+            <div class="summary-item__variant">
+              ${variant.title}
+              ${!variant.available ? `<span class="material-symbols-outlined${soldOutClass}">error</span>` : ''}
+            </div>
+            <div class="summary-item__price-group">
+              <input type="number" class="variant-quantity" value="${qty}" min="1" data-handle="${handle}" data-variant-id="${variant.id}" ${!variant.available ? 'disabled' : ''}>
+              <div class="summary-item__price">${this.currencySymbol}${price}</div>
+              <button class="remove-optional" data-handle="${component.handle}" data-variant-id="${variant.id}">
+                <svg viewBox="0 0 24 24" width="16" height="16">
+                  <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+                </svg>
+              </button>
             </div>
           </div>
-        </div>
       `;
     });
-    requiredSection.innerHTML = requiredHtml;
 
-    // Update optional components
-    let optionalHtml = '';
-    let hasOptionalComponents = false;
-    
-    this.selectedVariants.forEach((variants, handle) => {
-      if (!handle.endsWith('-optional')) {
-        return;
-      }
-      
-      hasOptionalComponents = true;
-      const baseHandle = handle.replace('-optional', '');
-      
-      const component = this.components.find(c => c.handle === baseHandle);
-      if (!component) {
-        return;
-      }
-
-      // Ensure variants is an array
-      const variantsArray = Array.isArray(variants) ? variants : [variants];
-      
-      variantsArray.forEach(variant => {
-        const quantity = variant.quantity || 1;
-        const variantPrice = variant.price * quantity;
-        const isSoldOut = !variant.available;
-        optionalHtml += `
-          <div class="summary-item optional-item" data-component="${handle}" data-variant-id="${variant.id}">
-            <div class="summary-item__content">
-              <h4 class="summary-item__title">
-                ${this.formatComponentTitle(component.title)}
-                ${component.clarifying_text ? ` <span class="clarifying-text">(${component.clarifying_text})</span>` : ''}
-              </h4>
-              <div class="summary-item__variant-row">
-                <div class="summary-item__variant-group">
-                  <div class="summary-item__variant-wrapper">
-                    <div data-variant-id="${variant && variant.id}" class="summary-item__variant">
-                      ${variant.title}
-                      ${isSoldOut ? `
-                        <span class="material-symbols-outlined icon-sold-out" style="color: #dc3545; margin-left: 4px; font-size: 24px; vertical-align: middle;">
-                          error
-                        </span>
-                      ` : ''}
-                    </div>
-                  </div>
-                  <button class="remove-optional" data-handle="${baseHandle}" data-variant-id="${variant.id}">
-                    <svg viewBox="0 0 24 24" width="16" height="16">
-                      <path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
-                    </svg>
-                  </button>
-                </div>
-                <div class="summary-item__price-group">
-                  <div class="quantity-input">
-                    <span class="quantity-prefix">x</span>
-                    <input 
-                      type="number" 
-                      class="variant-quantity" 
-                      value="${quantity}"
-                      min="1"
-                      data-handle="${baseHandle}"
-                      data-variant-id="${variant.id}"
-                      ${isSoldOut ? 'disabled' : ''}
-                    >
-                  </div>
-                  <div class="summary-item__price">${this.currencySymbol}${(variantPrice / 100).toFixed(2)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        `;
-      });
-    });
-
-    // If no optional components are selected, show the "None Selected" state
-    if (!hasOptionalComponents) {
-      optionalHtml = `
-        <div class="summary-item optional-item">
-          <div class="summary-item__content">
-            <div class="summary-item__variant-row">
-              <div class="summary-item__variant">None Selected</div>
-            </div>
-          </div>
+    // Close component block
+    html += `
         </div>
-      `;
-    }
-    
-    optionalSection.innerHTML = optionalHtml;
+      </div>
+    `;
+  });
 
-    // Update total price
-    this.updateTotalPrice();
+  componentsList.innerHTML = html;
+
+  
+  componentsList.querySelectorAll('.variant-quantity').forEach(input =>
+    input.addEventListener('change', e => this.handleQuantityChange(e))
+  );
+
+  this.updateTotalPrice();
+}
+
+  removeComponent(handle, variantId) {
+    const variant = this.selectedVariants.get(handle);
+    if (!variant) return;
+
+    if (variant.id === variantId) {
+      this.selectedVariants.delete(handle);
+      this.updateConfiguratorSummary();
+      this.updateTotalPrice();
+      this.evaluateConflicts();
+    }
   }
+
   updateTotalPrice() {
     const summaryContainer = document.querySelector('.configuration-summary');
     if (!summaryContainer) return;
@@ -1305,6 +1147,8 @@ getMatchingVariantFromSelections(selectedOptions) {
         if (desktopImage) {
           desktopImage.src = imageUrl;
         }
+        // add variant id to as a data attribute
+        card.dataset.variantId = variant.id;
         // Update option flags
           const optionFlags = card.querySelectorAll('.option-flag');
           optionFlags.forEach((flag, index) => {
@@ -1349,85 +1193,67 @@ getMatchingVariantFromSelections(selectedOptions) {
       });
     }
   }
+
+applyConfig() {
+  const configuratorCards = document.querySelectorAll('.component-card');
+  
+  configuratorCards.forEach(card => {
+    if (!card.dataset.variantId) return;
+    
+    // Find matching card in parts tab
+    const partsCard = document.querySelector(`.component-card[data-component-handle="${card.dataset.componentHandle}"]`);
+    if (!partsCard) return;
+    
+    // Set it as selected component
+    this.selectedComponent = this.components.find(c => c.handle === card.dataset.componentHandle);
+    if (!this.selectedComponent) return;
+    
+    // Set the variant
+    this.selectedVariant = this.selectedComponent.variants.find(v => v.id === parseInt(card.dataset.variantId));
+    if (!this.selectedVariant) return;
+    
+    // Apply the selection
+    this.applySelection(null, { closest: () => partsCard });
+  });
+}
   applySelection(applyButton, container) {
-  if (!this.selectedComponent || !this.selectedVariant) {
-    return;
-  }
+  if (this.preorderStatus && this.preorderStatus !== 'live') return;
+  if (!this.selectedComponent || !this.selectedVariant) return;
 
-  const handle = this.selectedComponent.isOptionalSelection
-    ? `${this.selectedComponent.handle}-optional`
-    : this.selectedComponent.handle;
-
+  const handle = this.selectedComponent.handle;
   const quantityInput = document.getElementById('option-quantity');
-  const quantity = this.selectedComponent.isOptionalSelection && quantityInput
-    ? parseInt(quantityInput.value) || 1
-    : 1;
+  const newQuantity = parseInt(quantityInput?.value) || 1;
 
-  const variantWithQuantity = {
-    ...this.selectedVariant,
-    quantity: quantity,
-  };
+  // Get the existing list (or start a new one)
+  const existing = this.selectedVariants.get(handle);
+  const list = Array.isArray(existing) ? existing : (existing ? [existing] : []);
 
-  if (this.selectedComponent.isOptionalSelection) {
-    let existingVariants = this.selectedVariants.get(handle) || [];
-    existingVariants = Array.isArray(existingVariants) ? existingVariants : [existingVariants];
-
-    const existingIndex = existingVariants.findIndex((v) => v.id === this.selectedVariant.id);
-    if (existingIndex !== -1) {
-      existingVariants[existingIndex].quantity += quantity;
-    } else {
-      existingVariants.push(variantWithQuantity);
-    }
-    this.selectedVariants.set(handle, existingVariants);
+  // Look for the same variant ID
+  const match = list.find(v => v.id === this.selectedVariant.id);
+  if (match) {
+    // already in list → bump its quantity
+    match.quantity = (match.quantity || 0) + newQuantity;
   } else {
-    this.selectedVariants.set(handle, variantWithQuantity);
+    // new variant → push to list
+    list.push({ ...this.selectedVariant, quantity: newQuantity });
   }
 
+  // Save back
+  this.selectedVariants.set(handle, list);
+
+  // Rest of the flow stays the same
   this.updateAllComponentStatuses();
   this.updateConfiguratorSummary();
   this.updateTotalPrice();
   this.evaluateConflicts();
 
-  // NEW: Reset UI after applying selection based on context
-  if (applyButton && container && this.selectedComponent && this.selectedComponent.isOptionalSelection) {
-    setTimeout(() => {
-      if (this.checkIsMobile()) {
-        // MOBILE RESET:
-        // Reset the desktop component image inside the mobile card
-        const img = container.querySelector('.component-card__image');
-        if (img) {
-          img.src = this.selectedComponent.blueprint;
-        }
-        // Reset the mobile dropdowns
-        const optionsContainer = container.querySelector('.mobile-card-options');
-        if (optionsContainer) {
-          this.resetOptionsContent(optionsContainer);
-        }
-      } else {
-        // DESKTOP RESET:
-        // Reset the navigation image inside the options container
-        const navImage = container.parentElement.querySelector('.component-navigation__image');
-        if (navImage) {
-          navImage.src = this.selectedComponent.blueprint;
-        }
-        // Reset the dropdowns in the options grid
-        const optionsGrid = container.parentElement;
-        if (optionsGrid) {
-          this.resetOptionsContent(optionsGrid);
-        }
-      }
-      // Reset the button text and disable it again
-      if (applyButton) {
-        applyButton.textContent = "Add to Configuration";
-        applyButton.disabled = true;
-      }
-    }, 1000); // Wait 1 second before resetting
-  }
-  if(this.selectedVariant.available)
+  if (this.selectedVariant.available) {
     this.showToast(`${this.selectedComponent.title} added successfully`, 'success');
-  else
-    this.showToast(`Sold out`, 'error');
+  } else {
+    this.showToast('Sold out', 'error');
+  }
 }
+
 
   updateComponentStatus(componentHandle, variant) {
     const card = document.querySelector(`.component-card[data-component-id="${componentHandle}"]`);
@@ -1485,17 +1311,6 @@ getMatchingVariantFromSelections(selectedOptions) {
           statusBadge.classList.add('hidden');
       }
         card.classList.remove('configured');
-
-        // Update component counter if this is a required component
-        if (component.required && !componentHandle.endsWith('-optional')) {          
-          // Update add to cart button state
-          const addToCartButton = document.querySelector('.add-to-cart-button');
-          if (addToCartButton) {
-            addToCartButton.classList.add('disabled');
-            addToCartButton.disabled = true;
-            addToCartButton.textContent = `${this.getCompletedRequiredCount()} / ${this.totalRequiredComponents} Components Selected`;
-          }
-        }
       }
     }
     // If this is a required component, update extra components visibility
@@ -1547,10 +1362,6 @@ updateAllComponentStatuses() {
   const completedCount = this.getCompletedRequiredCount();
   this.completedRequiredComponents = completedCount;
     
-  // Update the visual counter
-  if (this.counterCurrent) {
-    this.counterCurrent.textContent = completedCount;
-  }
     
   // Re-check conflicts (if necessary)
   this.evaluateConflicts();
@@ -1659,10 +1470,6 @@ updateAllComponentStatuses() {
       const variant = this.updateSelectedVariant(context);
       if (variant) {
       this.selectedVariant = variant;
-      // If the component is required, auto-apply.
-        if (!this.selectedComponent.isOptionalSelection) {
-          this.applySelection();
-      } else {
           // For optional/add-on components, enable the "Add to Configuration" button.
           if (context === "carousel") {
               const parentCard = event.target.closest('.mobile-component-card');
@@ -1673,7 +1480,6 @@ updateAllComponentStatuses() {
                   }
               }
           }
-      }
       } else {
           // If no valid variant and the component is optional, disable the button.
           if (!this.selectedComponent.required && context === "carousel") {
@@ -1718,70 +1524,14 @@ updateAllComponentStatuses() {
     
     // First pass: identify add-ons and extras
     const addOns = [];
-    const extras = [];
     
     extraComponents.forEach(extraCard => {
-      // Get the base handle by removing "-optional" suffix
-      const baseHandle = extraCard.dataset.componentId.replace(/-optional$/, '');
-      
-      // Check if there's a corresponding required component
-      const hasRequiredComponent = document.querySelector(`.component-card[data-component-id="${baseHandle}"]`);
-      
-      if (hasRequiredComponent) {
-        // This is an "Extra" component
-        extras.push(extraCard);
-        const isBaseConfigured = this.selectedVariants.has(baseHandle);
-        if (!isBaseConfigured) {
-          extraCard.classList.add('locked');
-          // Add lock icon and tooltip if they don't exist
-          if (!extraCard.querySelector('.lock-icon')) {
-            const lockIcon = document.createElement('div');
-            lockIcon.className = 'lock-icon';
-            lockIcon.innerHTML = `
-              <svg viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zM9 6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9V6zm9 14H6V10h12v10zm-6-3c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z"/>
-              </svg>
-            `;
-            
-            const tooltip = document.createElement('div');
-            tooltip.className = 'tooltip';
-            const component = this.components.find(c => c.handle === baseHandle);
-            tooltip.textContent = `Please add a ${component ? this.formatComponentTitle(component.title) : ''} to your configuration first`;
-            
-            extraCard.appendChild(lockIcon);
-            extraCard.appendChild(tooltip);
-          }
-          
-          // Disable all interactive elements
-          extraCard.querySelectorAll('select, button, input').forEach(el => {
-            el.disabled = true;
-          });
-        } else {
-          extraCard.classList.remove('locked');
-          // Remove lock icon and tooltip
-          const lockIcon = extraCard.querySelector('.lock-icon');
-          const tooltip = extraCard.querySelector('.tooltip');
-          if (lockIcon) lockIcon.remove();
-          if (tooltip) tooltip.remove();
-          
-          // Re-enable all interactive elements
-          extraCard.querySelectorAll('select, button, input').forEach(el => {
-            el.disabled = false;
-          });
-        }
-      } else {
-        // This is an "Add On" component
-        addOns.push(extraCard);
-      }
+      addOns.push(extraCard);
     });
     
     if (!this.checkIsMobile()) {
       // Add back to DOM in correct order
     addOns.forEach(card => {
-      optionalGrid.appendChild(card);
-    });
-    
-    extras.forEach(card => {
       optionalGrid.appendChild(card);
     });
     }
@@ -1836,6 +1586,7 @@ updateAllComponentStatuses() {
                   min="1"
                   data-handle="${baseHandle}"
                   data-variant-id="${variant.id}"
+                  ${variant.available ? '' : 'disabled'}
                 >
               </div>
               <div class="optional-variant-price">${this.currencySymbol}${(variantPrice / 100).toFixed(2)}</div>
@@ -1852,43 +1603,38 @@ updateAllComponentStatuses() {
 
     extraComponentsContainer.innerHTML = extraComponentsHtml;
   }
-  handleQuantityChange(e) {
+handleQuantityChange(e) {
   const input = e.target;
-  const handle = input.dataset.handle;
+  const handle = input.dataset.handle;                      // ← plain handle
   const variantId = parseInt(input.dataset.variantId, 10);
-  const newQuantity = parseInt(input.value) || 1;
+  const newQuantity = Math.max(1, parseInt(input.value, 10) || 1);
 
-  if (newQuantity < 1) {
-    input.value = 1;
-    return;
+  // Pull the array (or singleton) directly from the map by handle
+  const existing = this.selectedVariants.get(handle);
+  if (!existing) return;
+  const variants = Array.isArray(existing) ? existing : [existing];
+
+  // Find and update the right variant
+  const v = variants.find(x => x.id === variantId);
+  if (!v) return;
+  v.quantity = newQuantity;
+
+  // Put it back in the map
+  this.selectedVariants.set(handle, variants);
+
+  // Update the line‐item price in the DOM
+  const priceEl = input.closest('.summary-item__price-group')
+                      .querySelector('.summary-item__price');
+  if (priceEl) {
+    priceEl.textContent = 
+      `${this.currencySymbol}${(v.price * newQuantity / 100).toFixed(2)}`;
   }
 
-  const optionalHandle = `${handle}-optional`;
-
-  const variants = this.selectedVariants.get(optionalHandle);
-  if (!variants) return;
-
-  const variantsArray = Array.isArray(variants) ? variants : [variants];
-  const variant = variantsArray.find((v) => v.id === variantId);
-  if (!variant) return;
-
-  variant.quantity = newQuantity;
-  this.selectedVariants.set(optionalHandle, variantsArray);
-
-  const summaryItem = input.closest('.summary-item');
-  if (summaryItem) {
-    const priceElement = summaryItem.querySelector('.summary-item__price');
-    if (priceElement) {
-      const price = variant.price * newQuantity;
-      priceElement.textContent = `${this.currencySymbol}${(price / 100).toFixed(2)}`;
-    }
-  }
-
+  // Recompute total & conflicts
   this.updateTotalPrice();
-
-  // Call evaluateConflicts to re-check the button state
   this.evaluateConflicts();
-  }
+}
+
   updateOptionFlags(card, dropdowns, resetToDefault = false) {
     if (!card) return;
 
@@ -1920,7 +1666,7 @@ updateAllComponentStatuses() {
     });
   }
   //#endregion
-
+  
   //#region Responsive Layout
   setupResponsiveListener() {
     let resizeTimeout;
@@ -1990,88 +1736,152 @@ updateAllComponentStatuses() {
       }
     });
   }
-  restoreMobileLayout() {
-    if (isScrolling) {
-        return;
-    }
+ restoreMobileLayout() {
+  if (isScrolling) return;
 
+  const previewArea       = document.querySelector('.configurator__preview');
+  const mobileBottomBar   = document.querySelector('.mobile-bottom-bar');
+  const summaryContainer  = document.querySelector('.configuration-summary');
+  const mobileCarousel    = document.querySelector('.mobile-carousel-container');
+  const tabsContainer     = document.querySelector('.mobile-carousel-tabs');
+  const applyConfigButton = document.getElementById('apply-config-button');
 
-      const mobileBottomBar = document.querySelector('.mobile-bottom-bar');
-      const mobileCarousel = document.querySelector('.mobile-carousel-container');
-      const summaryContainer = document.querySelector('.configuration-summary');
-      const previewArea = document.querySelector('.configurator__preview');
+  if (!previewArea || !mobileBottomBar || !summaryContainer || !mobileCarousel || !tabsContainer || !applyConfigButton) {
+    return;
+  }
 
-    if (!mobileBottomBar || !mobileCarousel || !summaryContainer) {
-          return;
-    }
+  // 1) Move summary into the mobile bottom bar if needed
+  if (!mobileBottomBar.contains(summaryContainer)) {
+    mobileBottomBar.appendChild(summaryContainer);
+  }
 
-      // Move summary into the mobile bottom bar
-      if (!mobileBottomBar.contains(summaryContainer)) {
-          mobileBottomBar.appendChild(summaryContainer);
-      }
+  // 2. Re-order Apply button, Tabs, and Carousel immediately after the preview
+  //    using insertAdjacentElement to guarantee the right sequence:
+  previewArea.insertAdjacentElement('afterend', applyConfigButton);
+  applyConfigButton.insertAdjacentElement('afterend', tabsContainer);
+   tabsContainer.insertAdjacentElement('afterend', mobileCarousel);
+   const infoSection = document.querySelector('.configurator-description');
+  
+   if (infoSection) {
+    // We want it directly after the carousel, but before the PCB-layout block
+    // so insert right after carouselContainer
+    mobileCarousel.insertAdjacentElement('afterend', infoSection);
+  }
 
-      // Move carousel after the preview area
-      if (previewArea && !previewArea.nextSibling?.classList.contains('mobile-carousel-container')) {
-          previewArea.parentNode.insertBefore(mobileCarousel, previewArea.nextSibling);
-      }
-
-      // Ensure the configurator summary accordion is collapsed
-      const accordionHeader = summaryContainer.querySelector('.summary-header');
-      const content = summaryContainer.querySelector('.summary-content');
-      if (accordionHeader && content) {
-          const isExpanded = accordionHeader.getAttribute('aria-expanded') === 'true';
-          if (isExpanded) {
-              // Simulate the click to collapse
-              accordionHeader.click();
-          }
-      }
+  // 3. Collapse the summary accordion if it’s open
+  const header  = summaryContainer.querySelector('.summary-header');
+  const content = summaryContainer.querySelector('.summary-content');
+  if (header && content && header.getAttribute('aria-expanded') === 'true') {
+    header.click();
+  }
 }
+
 
   checkIsMobile() {
     // Simple threshold check
     return window.innerWidth <= 768;
   }
-  setUpMobileLayout() {
-      let carouselContainer = document.querySelector('.mobile-carousel-container');
-      if (!carouselContainer) {
-          carouselContainer = document.createElement('div');
-          carouselContainer.classList.add('mobile-carousel-container');
+setUpMobileLayout() {
+  // 1) Ensure the bottom bar exists
+  this.createMobileBottomBar();
 
-          // Insert it into the DOM after the preview area
-          const preview = document.querySelector('.configurator__preview');
-          if (preview && preview.parentNode) {
-              preview.parentNode.insertBefore(carouselContainer, preview.nextSibling);
-          }
-      }
+  // 2) Grab the anchor node
+  const preview = document.querySelector('.configurator__preview');
+  if (!preview) return;
 
-      // 3. Initialize the carousel
-      this.setupMobileCarousel(carouselContainer);
+  // 3) Remove any old tabs (to avoid duplicates)…
+  const existingTabs = document.querySelector('.mobile-carousel-tabs');
+  if (existingTabs) existingTabs.remove();
 
-      // 4. Create pinned bottom bar
-      this.createMobileBottomBar();
-
-    if (this.checkIsMobile()) {
-      const specsAccordion = document.querySelector('.configurator-specs');
-      const configDescription = document.querySelector('.configurator-description');
-      if (specsAccordion) {
-        // Move the specs accordion after the mobile carousel container
-        if (carouselContainer && carouselContainer.parentNode) {
-          // Check if it's not already in the right position
-          if (carouselContainer.nextSibling !== specsAccordion) {
-            carouselContainer.parentNode.insertBefore(specsAccordion, carouselContainer.nextSibling);
-          }
-        }
-      }
-      if (configDescription) {
-  carouselContainer.parentNode.insertBefore(configDescription, carouselContainer.nextSibling);
-}
-    }
-
-      // 6. Re-evaluate conflicts and update the summary
-      this.evaluateConflicts();
-      this.updateConfiguratorSummary();
-      this.updateTotalPrice();
+  // 4) Grab (or create) the carousel container
+  let carouselContainer = document.querySelector('.mobile-carousel-container');
+  if (!carouselContainer) {
+    carouselContainer = document.createElement('div');
+    carouselContainer.classList.add('mobile-carousel-container');
   }
+
+  // 5) Build the tabs container
+  const tabsContainer = document.createElement('div');
+  tabsContainer.classList.add('mobile-carousel-tabs');
+  tabsContainer.style.display = 'none';
+  const configuratorTab = document.createElement('button');
+  configuratorTab.classList.add('mobile-carousel-tab', 'active');
+  configuratorTab.textContent = 'Preview';
+  configuratorTab.addEventListener('click', () => this.switchTab('configurator'));
+  const partsTab = document.createElement('button');
+  partsTab.classList.add('mobile-carousel-tab');
+  partsTab.textContent = 'Components';
+  partsTab.addEventListener('click', () => this.switchTab('parts'));
+  tabsContainer.appendChild(configuratorTab);
+  tabsContainer.appendChild(partsTab);
+
+  // 6) Grab the apply-config button
+  const applyConfigButton = document.getElementById('apply-config-button');
+
+  // 7) Insert in this exact order *after* the preview:
+  //    a) carouselContainer  → moves it if already in DOM
+  //    b) tabsContainer      → now sits between preview & carousel
+  //    c) applyConfigButton  → now sits between preview & tabs
+  preview.insertAdjacentElement('afterend', carouselContainer);
+  preview.insertAdjacentElement('afterend', tabsContainer);
+  if (applyConfigButton) {
+    preview.insertAdjacentElement('afterend', applyConfigButton);
+  }
+
+  // 8) Now initialize your carousel logic
+  this.setupMobileCarousel(carouselContainer);
+  this.switchTab('configurator');
+
+  // 9) (Optional) Move specs & description immediately after the carousel
+  const specsAccordion = document.querySelector('.specs-accordion');
+  if (specsAccordion) {
+    carouselContainer.parentNode.insertBefore(
+      specsAccordion,
+      carouselContainer.nextSibling
+    );
+  }
+  const configDescription = document.querySelector('.configurator__description');
+  if (configDescription) {
+    carouselContainer.parentNode.insertBefore(
+      configDescription,
+      carouselContainer.nextSibling
+    );
+  }
+
+  // 10) Refresh your summary/conflicts
+  this.evaluateConflicts();
+  this.updateConfiguratorSummary();
+  this.updateTotalPrice();
+}
+
+
+
+switchTab(tab) {
+  // 1. Update tab styling
+  const tabs = document.querySelectorAll('.mobile-carousel-tab');
+  tabs.forEach(t => t.classList.remove('active'));
+  const label = tab === 'configurator' ? 'Configurator' : 'Parts';
+  const activeButton = Array.from(tabs).find(t => t.textContent === label);
+  if (activeButton) activeButton.classList.add('active');
+
+  // 2. Show/hide each mobile card based on whether its handle includes "-optional"
+  this.carouselCards.forEach(card => {
+    const isOptional = card.dataset.handle.includes('-optional');
+    if (tab === 'configurator') {
+      card.style.display = isOptional ? 'none' : 'block';
+    } else {
+      card.style.display = isOptional ? 'block' : 'none';
+    }
+  });
+
+  // 3. Jump to the first visible card
+  const firstVisible = this.carouselCards.findIndex(card => card.style.display !== 'none');
+  if (firstVisible !== -1) {
+    this.goToCard(firstVisible);
+  }
+}
+
+
 
   setupMobileCarousel(carouselContainer) {
     const track = document.createElement('div');
@@ -2097,32 +1907,19 @@ updateAllComponentStatuses() {
       const component = this.components.find(c => c.handle === componentHandle);
       if (!component) return;
 
-      // Find the optional badge element
-      const optionalBadge = card.querySelector('.component-card__desktop .component-card__image-container .optional-badge');
-      
-      // Determine category based on the optional badge
-      if (!optionalBadge) {
-        // No optional badge means it's a required component
-        sortedCards.required.push({ card, component });
-      } else {
-        const badgeText = optionalBadge.textContent.trim().toLowerCase();
-        if (badgeText === 'add on') {
-          sortedCards.addons.push({ card, component });
-        } else if (badgeText === 'extra') {
-          sortedCards.extras.push({ card, component });
-        }
-      }
+      sortedCards.required.push({ card, component });
     });
 
     // Combine cards in desired order: Required → Add-ons → Extras
     const orderedCards = [
       ...sortedCards.required,
-      ...sortedCards.addons,
-      ...sortedCards.extras
     ];
 
+    const configuratorCards = sortedCards.required;
+    const partsCards = sortedCards.addons.concat(sortedCards.extras);
+
     // Create carousel cards in the new order
-    orderedCards.forEach(({ component, card }) => {
+    configuratorCards.forEach(({ component, card }) => {
       const carouselCardEl = this.buildMobileCarouselCard(component, card.dataset.componentId);
       this.carouselCards.push(carouselCardEl);
       track.appendChild(carouselCardEl);
@@ -2294,48 +2091,48 @@ updateAllComponentStatuses() {
           this.carouselIsDragging = false;
       });
   }
-  goToCard(newIndex) {
-    // clamp
-    if (newIndex < 0) newIndex = 0;
-    if (newIndex >= this.carouselCards.length) {
-      newIndex = this.carouselCards.length - 1;
-    }
+ goToCard(newIndex) {
+  const total = this.carouselCards.length;
 
-     // Find the currently selected card and remove the 'selected' class
-    const previousSelectedCard = document.querySelector('.component-card.selected');
-    if (previousSelectedCard) {
-        previousSelectedCard.classList.remove('selected');
-    }
+  // 1. Circular wrap
+  if (newIndex < 0)           newIndex = total - 1;
+  else if (newIndex >= total) newIndex = 0;
 
-    this.carouselIndex = newIndex;
-    this.renderMobileCarousel();
-    const activeCard = this.carouselCards[this.carouselIndex];
-    const originalHandle = activeCard?.dataset.handle
-    const baseHandle = originalHandle.replace(/-optional$/, '');
-    const selectedComponent = this.components.find(c => c.handle === baseHandle);
-    if (!selectedComponent) return;
-    this.selectedComponent = selectedComponent;
-
-     // Store the previous selection state before updating
-    const wasConfigured = this.selectedVariants.has(originalHandle);
-
-    if (originalHandle.endsWith('-optional')) {
-      this.selectedComponent.isOptionalSelection = true;
-    } else {
-      this.selectedComponent.isOptionalSelection = false;
-    }
-
-    // Find the component-card inside the active mobile-component-card and add 'selected' class
-    const newSelectedCard = activeCard.querySelector('.component-card');
-    if (newSelectedCard) {
-        newSelectedCard.classList.add('selected');
-    }
-     // Only update if this component wasn't previously configured
-    if (!wasConfigured) {
-      this.updateOptionsGrid("carousel");
-      this.updateSelectedVariant("carousel");
-    }
+  // 2. If that card is hidden, jump to the first visible one
+  if (this.carouselCards[newIndex].style.display === 'none') {
+    const firstVisible = this.carouselCards.findIndex(c => c.style.display !== 'none');
+    if (firstVisible !== -1) newIndex = firstVisible;
   }
+
+  // 3. Remove 'selected' from any previously selected card
+  const prev = document.querySelector('.component-card.selected');
+  if (prev) prev.classList.remove('selected');
+
+  // 4. Update index and re-render
+  this.carouselIndex = newIndex;
+  this.renderMobileCarousel();
+
+  // 5. Sync this.selectedComponent and highlight it
+  const activeWrapper = this.carouselCards[this.carouselIndex];
+  const handle = activeWrapper.dataset.handle.replace(/-optional$/, '');
+  const comp = this.components.find(c => c.handle === handle);
+  if (comp) {
+    this.selectedComponent = comp;
+    comp.isOptionalSelection = activeWrapper.dataset.handle.endsWith('-optional');
+  }
+
+  // 6. Mark the inner .component-card as selected
+  const newCard = activeWrapper.querySelector('.component-card');
+  if (newCard) newCard.classList.add('selected');
+
+  // 7. If this wasn’t already configured, refresh its dropdowns
+  const wasConfigured = this.selectedVariants.has(activeWrapper.dataset.handle);
+  if (!wasConfigured) {
+    this.updateOptionsGrid("carousel");
+    this.updateSelectedVariant("carousel");
+  }
+}
+
   /**
  * Mobile handler for when a user changes any <select> dropdown in a component card.
  * It reuses your existing logic: find the variant, set `this.selectedVariant`,
@@ -2385,72 +2182,87 @@ updateAllComponentStatuses() {
   //#endregion
 
   //#region Conflict Management
-  evaluateConflicts() {
-    this.clearAllConflictBadges();
-    let hasActiveConflict = false;
-    let missingRequiredComponents = false;
+ evaluateConflicts() {
+  this.clearAllConflictBadges();
+  let hasActiveConflict = false;
+  let missingRequiredComponents = false;
 
-    // Check for missing required components
-    this.components.forEach((component) => {
-      if (component.required && !this.selectedVariants.has(component.handle)) {
-        missingRequiredComponents = true;
-      }
-    });
+  // Check for missing required components
+  this.components.forEach(component => {
+    if (component.required && !this.selectedVariants.has(component.handle)) {
+      missingRequiredComponents = true;
+    }
+  });
 
-    // Check all conflict definitions
-    this.conflicts.forEach((conflict) => {
-      const { component1, component1_variants, component2, component2_variants } = conflict;
-      
-      // Get ALL selected variants for both components (including optional)
-      const selected1 = this.getSelectedVariants(component1);
-      const selected2 = this.getSelectedVariants(component2);
+  // Now only flag conflicts if *both* components are actually in the config
+  this.conflicts.forEach(conflict => {
+    const { component1, component1_variants, component2, component2_variants } = conflict;
 
-      // Convert conflict variant IDs to numbers
-      const conflictIds1 = new Set(component1_variants.map(Number));
-      const conflictIds2 = new Set(component2_variants.map(Number));
+    // Gather all selected variants for both sides
+    const selected1 = this.getSelectedVariants(component1);
+    const selected2 = this.getSelectedVariants(component2);
 
-      // Check if ANY conflicting pair exists without valid partners
-      let conflictExists = false;
-      
-      // Check component1 conflicts against component2 selections
-      selected1.forEach(v1 => {
-        if (conflictIds1.has(v1.id)) {
-          const hasValidPartner = selected2.some(v2 => !conflictIds2.has(v2.id));
-          if (!hasValidPartner) {
-            conflictExists = true;
-            this.displayConflictBadge(component1, this.buildConflictMessage({
+    // **NEW GUARD**: skip if one side isn’t in the config at all
+    if (selected1.length === 0 || selected2.length === 0) {
+      console.log(`Skipping conflict check for ${component1} ↔ ${component2} because one side missing.`);
+      return;
+    }
+
+    // convert IDs to sets for quick lookup
+    const conflictIds1 = new Set(component1_variants.map(Number));
+    const conflictIds2 = new Set(component2_variants.map(Number));
+
+    let conflictExists = false;
+
+    // check each selected v1
+    selected1.forEach(v1 => {
+      if (conflictIds1.has(v1.id)) {
+        // see if any partner in selected2 is *not* a conflict
+        const hasValidPartner = selected2.some(v2 => !conflictIds2.has(v2.id));
+        if (!hasValidPartner) {
+          conflictExists = true;
+          this.displayConflictBadge(
+            component1,
+            this.buildConflictMessage({
               conflictVariantName: this.getVariantTitle(component1, v1.id),
               conflictSide: component1,
               otherSide: component2,
               fallbackDisclaimer: conflict.disclaimer
-            }), v1.id);
-          }
+            }),
+            v1.id
+          );
         }
-      });
+      }
+    });
 
-      // Check component2 conflicts against component1 selections
-      selected2.forEach(v2 => {
-        if (conflictIds2.has(v2.id)) {
-          const hasValidPartner = selected1.some(v1 => !conflictIds1.has(v1.id));
-          if (!hasValidPartner) {
-            conflictExists = true;
-            this.displayConflictBadge(component2, this.buildConflictMessage({
+    // and vice-versa
+    selected2.forEach(v2 => {
+      if (conflictIds2.has(v2.id)) {
+        const hasValidPartner = selected1.some(v1 => !conflictIds1.has(v1.id));
+        if (!hasValidPartner) {
+          conflictExists = true;
+          this.displayConflictBadge(
+            component2,
+            this.buildConflictMessage({
               conflictVariantName: this.getVariantTitle(component2, v2.id),
               conflictSide: component2,
               otherSide: component1,
               fallbackDisclaimer: conflict.disclaimer
-            }), v2.id);
-          }
+            }),
+            v2.id
+          );
         }
-      });
-
-      if (conflictExists) {
-        hasActiveConflict = true;
       }
     });
 
-    this.updateAddToCartButton(hasActiveConflict, missingRequiredComponents);
-  }
+    if (conflictExists) {
+      hasActiveConflict = true;
+    }
+  });
+
+  this.updateAddToCartButton(hasActiveConflict, missingRequiredComponents);
+}
+
     /**
    * Build a dynamic conflict message, including buttons for non-conflict partner variants.
    * 
@@ -2537,46 +2349,76 @@ updateAllComponentStatuses() {
  * Enhanced displayConflictBadge that accepts an HTML string. 
  */
   displayConflictBadge(component, disclaimerHtml, variantId) {
+  // 1) figure out which handle to use
+  const optionalHandle = `${component}-optional`;
+  const hasOptional = this.selectedVariants.has(optionalHandle)
+    && this.selectedVariants.get(optionalHandle).some(v => v.id === variantId);
+  const target = hasOptional ? optionalHandle : component;
 
-    // Check if this is an optional component variant
-    const optionalHandle = `${component}-optional`;
-    const hasOptionalVariant = this.selectedVariants.has(optionalHandle) && 
-      this.selectedVariants.get(optionalHandle).some(v => v.id === variantId);
+  // 2) find the row, bail if missing or already has an icon
+  const compEl = document.querySelector(`[data-component="${target}"]`);
+  if (!compEl) return;
+  const row = compEl.querySelector(`.summary-item__variant-row[data-variant-id="${variantId}"]`);
+  if (!row || row.querySelector('.conflict-icon')) return;
 
-    // Use optional handle if variant exists in optional selections
-    const targetComponent = hasOptionalVariant ? optionalHandle : component;
-
-    const componentElement = document.querySelector(`[data-component="${targetComponent}"]`);
-    if (!componentElement) {
-      return;
-    }
-
-    // Rest of the method remains the same...
-    const variantRow = componentElement.querySelector(`.summary-item__variant[data-variant-id="${variantId}"]`);
-    if (!variantRow) {
-      return;
-    }
-
-    // Check if icon already exists
-    if (variantRow.querySelector('.conflict-icon')) {
-      return;
-    }
-
-    // Create the conflict icon using Material Symbols
-    const conflictIcon = document.createElement('span');
-    conflictIcon.classList.add('conflict-icon', 'material-symbols-outlined');
-    conflictIcon.textContent = 'warning'; // Use Material Symbols' "warning" icon name
-    conflictIcon.style.color = '#FFC107'; // Set icon color (optional, you can also define this in CSS)
-
-    // Add tooltip to the icon
-    const tooltip = document.createElement('div');
-    tooltip.classList.add('variant-tooltip');
-    tooltip.innerHTML = disclaimerHtml;
-
-    // Append the tooltip to the icon and add it to the row
-    conflictIcon.appendChild(tooltip);
-    variantRow.appendChild(conflictIcon);
+  // 3) make sure row is positioned so we can absolutely position inside it
+  if (getComputedStyle(row).position === 'static') {
+    row.style.position = 'relative';
   }
+
+  // 4) build icon + tooltip
+  const icon = document.createElement('span');
+  icon.classList.add('conflict-icon', 'material-symbols-outlined');
+  icon.textContent = 'warning';
+  icon.style.position = 'relative';  // <-- tooltip will position relative to this
+  icon.style.color = '#FFC107';
+
+  const tooltip = document.createElement('div');
+  tooltip.classList.add('variant-tooltip');
+  tooltip.innerHTML = disclaimerHtml;
+  // hide until we measure+reposition
+  tooltip.style.visibility = 'hidden';
+  tooltip.style.opacity    = '0';
+  // placeholder; we’ll overwrite this with an exact px value
+  tooltip.style.setProperty('--arrow-left', '50%');
+
+  icon.appendChild(tooltip);
+  row.appendChild(icon);
+
+  // 5) on next paint: measure & shift both the box and the arrow
+  requestAnimationFrame(() => {
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+    if (!isMobile) {
+    const summary = document.querySelector('.configuration-summary').getBoundingClientRect();
+      const tipRect = tooltip.getBoundingClientRect();
+      const iconRect = icon.getBoundingClientRect();
+      const pad = 8;
+      let shiftX = 0;
+
+    // keep tooltip from spilling out of the summary container
+    if (tipRect.right + pad > summary.right) {
+      shiftX = (summary.right - pad) - tipRect.right;
+    } else if (tipRect.left - pad < summary.left) {
+      shiftX = (summary.left + pad) - tipRect.left;
+    }
+
+    // nudge the whole tooltip
+    tooltip.style.transform = `translateX(-50%) translateX(${shiftX}px)`;
+
+      // now compute exactly where the arrow's tip should sit
+      // icon center relative to the tooltip's left edge, then compensate for shiftX
+    const arrowLeft = (iconRect.left + iconRect.width/2)
+                    - tipRect.left
+                    - shiftX;
+    tooltip.style.setProperty('--arrow-left', `${arrowLeft}px`);
+    }
+    // reveal
+    tooltip.style.visibility = '';
+    tooltip.style.opacity    = '';
+  });
+}
+
+
   clearAllConflictBadges() {
     // Remove conflict styling/tooltip/icon from every variant row in the summary
     const allVariantRows = document.querySelectorAll('.summary-item__variant');
@@ -2594,6 +2436,13 @@ updateAllComponentStatuses() {
   const warningIconContainer = document.querySelector('.add-to-cart-warning');
   const preorderEnabled = document.querySelector('#cb') !== null;
   if (!addToCartButton) return;
+
+  if (this.preorderStatus && this.preorderStatus !== 'live') {
+    addToCartButton.disabled = true;
+    addToCartButton.classList.add('disabled');
+    addToCartButton.innerHTML = `Preorder Ended <br> Status: ${this.preorderStatus.toUpperCase()}`;
+    return;
+  }
 
   // Check for sold out components
   let hasSoldOutComponents = false;
@@ -2632,13 +2481,13 @@ updateAllComponentStatuses() {
       `;
     }
     
-    if (missingRequiredComponents) {
-      addToCartButton.innerHTML += `
-        <span class="material-symbols-outlined incomplete-build-warning">
-          warning
-        </span>
-      `;
-    }
+    // if (missingRequiredComponents) {
+    //   addToCartButton.innerHTML += `
+    //     <span class="material-symbols-outlined incomplete-build-warning">
+    //       warning
+    //     </span>
+    //   `;
+    // }
   }
 }
   //#endregion
@@ -2796,18 +2645,14 @@ updateAllComponentStatuses() {
         this.resetOptionsContent(optionsGrid);
       }
     }
-    
-    // Update the counter for required components
-    if (component.required) {
-      this.completedRequiredComponents = Math.max(0, this.completedRequiredComponents - 1);
-      this.counterCurrent.textContent = this.completedRequiredComponents;
-    }
   }
   //#endregion
 
   //#region Navigation Methods
   navigateComponents(direction) {
-    const componentCards = Array.from(document.querySelectorAll('.component-card:not(.locked)'));
+    const currentTab = document.querySelector('.tab-button.active');
+    const tabType = currentTab.dataset.tab;
+    const componentCards = Array.from(document.querySelector(`#${tabType}-components`).querySelectorAll('.component-card:not(.locked)'));
     const currentIndex = componentCards.findIndex(card => card.classList.contains('selected'));
     let nextIndex;
 
@@ -2817,26 +2662,10 @@ updateAllComponentStatuses() {
       nextIndex = currentIndex - 1 < 0 ? componentCards.length - 1 : currentIndex - 1;
     }
 
-    // Get the next component card
     const nextCard = componentCards[nextIndex];
     if (nextCard) {
-      // Check if we need to switch tabs
-      const nextIsRequired = nextCard.querySelector('.required-badge') !== null;
-      const currentTab = document.querySelector('.tab-button.active');
-      const requiredTab = document.querySelector('.tab-button[data-tab="required"]');
-      const optionalTab = document.querySelector('.tab-button[data-tab="optional"]');
-      
-      // Switch tabs if needed
-      if (nextIsRequired && currentTab.dataset.tab !== 'required') {
-        requiredTab.click();
-      } else if (!nextIsRequired && currentTab.dataset.tab !== 'optional') {
-        optionalTab.click();
-      }
-      
-      // Select the component
       this.selectComponent(nextCard.dataset.componentId, true);
       
-      // Ensure the component is visible in the scroll container
       const container = document.querySelector('.components-grid');
       const cardRect = nextCard.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
@@ -2898,6 +2727,9 @@ updateAllComponentStatuses() {
 
   //#region Cart Management
   async addConfigurationToCart() {
+    if (this.preorderStatus && this.preorderStatus !== 'live') {
+      return;
+    }
     const bundleId = Date.now().toString();
     const items = [];
 
@@ -3299,3 +3131,37 @@ window.toggleEnabledCart = function(checkbox) {
 ProductConfigurator.prototype.hasComponentConflicts = function() {
   return false; // Since we don't need to check for conflicts, always return false
 };
+
+// Clarifying text modal
+const clarifyModal = document.createElement('div');
+clarifyModal.id = 'clarify-modal';
+clarifyModal.classList.add('clarify-modal');
+clarifyModal.innerHTML = `
+  <div class="clarify-modal-content">
+    <button class="clarify-modal-close">
+      <span class="material-symbols-outlined">cancel</span>
+    </button>
+    <h3></h3>
+    <hr />
+    <div class="clarify-modal-text"></div>
+  </div>
+`;
+document.body.appendChild(clarifyModal);
+
+const dialogTitle = clarifyModal.querySelector('h3');
+const dialogText = clarifyModal.querySelector('.clarify-modal-text');
+const closeBtn = clarifyModal.querySelector('.clarify-modal-close');
+
+document.querySelectorAll('.clarify-info-icon').forEach(icon => {
+  icon.addEventListener('click', e => {
+    e.stopPropagation();
+    dialogTitle.textContent = icon.getAttribute('data-clarify-title');
+    dialogText.textContent = icon.getAttribute('data-clarify-text');
+    clarifyModal.style.display = 'flex';
+  });
+});
+
+closeBtn.addEventListener('click', () => clarifyModal.style.display = 'none');
+clarifyModal.addEventListener('click', e => {
+  if (e.target === clarifyModal) clarifyModal.style.display = 'none';
+}); 
