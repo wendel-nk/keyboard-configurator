@@ -14,6 +14,7 @@ constructor() {
     this.selectedComponent = null;
     this.configuration = {};
     this.optionsContent = document.querySelector('.configurator__options');
+    this.loadingOverlay = document.getElementById('loading-overlay');
     this.selectedVariants = new Map();
     this.initialImages = new Map(); // Track initial/current state of images
     this.temporarySelections = new Map(); // Track temporary selections
@@ -45,6 +46,8 @@ constructor() {
   
   this.conflictBadges = new Map();
   this.preloadedImages = new Set();
+        this.componentSelections = new Map();
+    this.isProgrammaticChange = false;
 
   document.getElementById('apply-config-button')?.addEventListener('click', () => this.applyConfig());
 
@@ -93,12 +96,19 @@ constructor() {
       })
       .catch(error => console.error('Error fetching cart:', error));
 
-    // If placeholders are disabled, hide all layers initially
-    if (!this.showPlaceholders) {
-      document.querySelectorAll('.component-layer').forEach(layer => {
-        layer.classList.add('hidden');
-      });
-    }
+    // Handle initial visibility of component layers based on disable_wireframe_in_preview setting
+    this.components.forEach(component => {
+      const layerElement = document.getElementById(`layer-${component.handle}`);
+      if (layerElement) {
+        // If wireframe is disabled for this component, or general placeholders are disabled,
+        // hide the blueprint if no variant is currently selected for it.
+        if (component.disable_wireframe_in_preview || !this.showPlaceholders) {
+          if (!this.selectedVariants.has(component.handle) || this.selectedVariants.get(component.handle).length === 0) {
+            layerElement.classList.add('hidden');
+          }
+        }
+      }
+    });
 
     
 
@@ -166,6 +176,13 @@ if (activeTab) activeTab.click();
     const hasConflict = this.hasComponentConflicts();
     const missingRequired = this.getCompletedRequiredCount() < this.totalRequiredComponents;
     this.updateAddToCartButton(hasConflict, missingRequired);
+
+    // Fade out the loading overlay after initialization
+    if (this.loadingOverlay) {
+      setTimeout(() => {
+        this.loadingOverlay.classList.add('fade-out');
+      }, 1000); // Delay by 0.5 seconds
+    }
   }
 
   preloadAllVariantImages() {
@@ -600,6 +617,7 @@ initializeSpecsAccordion() {
 }
 
 selectComponent(handle, force = false) {
+    console.log(`[selectComponent] Called with handle: ${handle}, force: ${force}`);
     // Check if the component is already selected, if so, ignore the click unless forced
     if (!force && this.selectedComponent && this.selectedComponent.handle === handle.replace(/-optional$/, '')) {
         return;
@@ -661,22 +679,21 @@ selectComponent(handle, force = false) {
     this.updateNavigationButtons(); // Previously removed, now restored
 
     // **Update dropdowns and options with a delay to ensure proper sequence**
+    this.isProgrammaticChange = true;
     if (this.checkIsMobile()) {
-      // First update the options grid to reset dropdowns
       this.updateOptionsGrid("carousel");
-      
-      // Then update the selected variant after a small delay
-      setTimeout(() => {
+      setTimeout(async () => {
+        await this.restoreDropdownSelections(originalHandle, "carousel", selectedCard);
+        this.isProgrammaticChange = false;
         this.updateSelectedVariant("carousel");
-      }, 250); // Slightly longer than the 200ms delay in updateOptionsGrid
+      }, 250);
     } else {
-      // First update the options grid to reset dropdowns
       this.updateOptionsGrid("desktop");
-      
-      // Then update the selected variant after a small delay
-      setTimeout(() => {
+      setTimeout(async () => {
+        await this.restoreDropdownSelections(originalHandle, "desktop", selectedCard);
+        this.isProgrammaticChange = false;
         this.updateSelectedVariant("desktop");
-      }, 250); // Slightly longer than the 200ms delay in updateOptionsGrid
+      }, 250);
     }
 }
 
@@ -709,6 +726,8 @@ selectComponent(handle, force = false) {
     });
   }
   getAvailableOptionsForPosition(position, selectedValues, context = "desktop") {
+    console.log(`[getAvailableOptionsForPosition] Called for position: ${position}, context: ${context}`);
+    console.log('[getAvailableOptionsForPosition] selectedValues:', selectedValues);
   // If no component or variants are loaded, bail out.
   if (!this.selectedComponent || !this.selectedComponent.variants) {
     return [];
@@ -810,6 +829,56 @@ selectComponent(handle, force = false) {
   return availableOptions;
   }
 
+  async restoreDropdownSelections(handle, context = "desktop", targetCardElement = null) {
+    console.log(`[DEBUG] Attempting to restore selections for component: ${handle}, context: ${context}`);
+    const savedSelections = this.componentSelections.get(handle);
+    if (!savedSelections || savedSelections.length === 0) {
+        console.log(`[DEBUG] No saved selections found for ${handle} or selections are empty.`);
+        return;
+    }
+    console.log(`[DEBUG] Saved selections for ${handle}:`, savedSelections);
+
+    let container;
+    if (context === "desktop") {
+        container = document.querySelector('.options-grid');
+    } else if (targetCardElement) {
+        container = targetCardElement.querySelector('.mobile-card-options');
+    } else {
+        // Fallback if targetCardElement is not provided for mobile, though it should be
+        container = document.querySelector('.mobile-carousel-track .mobile-component-card.active .mobile-card-options');
+    }
+    if (!container) {
+        console.log(`[DEBUG] Container not found for context: ${context}`);
+        return;
+    }
+    console.log(`[DEBUG] Container found:`, container);
+
+    const dropdowns = Array.from(container.querySelectorAll(context === "desktop" ? ".option-select" : ".mobile-option-select"));
+    console.log(`[DEBUG] Found dropdowns:`, dropdowns);
+
+    for (let i = 0; i < dropdowns.length; i++) {
+        const dropdown = dropdowns[i];
+        const savedValue = savedSelections[i];
+        console.log(`[DEBUG] Processing dropdown ${i}:`, dropdown, `Saved value: ${savedValue}`);
+
+        if (savedValue) {
+            await new Promise(resolve => setTimeout(resolve, 50));
+            const options = Array.from(dropdown.options);
+            const optionExists = options.some(opt => opt.value === savedValue);
+            console.log(`[DEBUG] Option '${savedValue}' exists in dropdown options:`, optionExists, options);
+
+            if (optionExists) {
+                dropdown.value = savedValue;
+                dropdown.dispatchEvent(new Event('change', { bubbles: true }));
+                console.log(`[DEBUG] Set dropdown ${i} value to '${savedValue}' and dispatched change event.`);
+            } else {
+                console.log(`[DEBUG] Option '${savedValue}' not found in dropdown ${i}. Stopping restoration for this component.`);
+                break;
+            }
+        }
+    }
+  }
+
   updateOptionsGrid(context = "desktop") {
     const container = context === "desktop"
         ? document.querySelector('.options-grid')
@@ -834,8 +903,21 @@ selectComponent(handle, force = false) {
     }, 200);
   }
 updateOptionsContent(container, context = "desktop") {
+  console.log(`[updateOptionsContent] Called for context: ${context}, selectedComponent:`, this.selectedComponent);
+  console.log('[updateOptionsContent] Container:', container);
   container.innerHTML = '';
   const selectedValues = new Map();
+
+  // Populate selectedValues from componentSelections for the current component
+  const savedSelections = this.componentSelections.get(this.selectedComponent.handle);
+  if (savedSelections) {
+    this.selectedComponent.options.forEach((option, index) => {
+      const savedValue = savedSelections[index];
+      if (savedValue) {
+        selectedValues.set(index + 1, savedValue); // Map position to value
+      }
+    });
+  }
 
   if (!this.selectedComponent || !this.selectedComponent.options) return;
 
@@ -923,7 +1005,6 @@ updateOptionsContent(container, context = "desktop") {
           } else {
               this.applySelection(applyButton, container);
           }
-          applyButton.textContent = "Add to configuration";
       });
       container.appendChild(applyButton);
   }
@@ -1094,7 +1175,7 @@ getMatchingVariantFromSelections(selectedOptions) {
       summaryContainer.classList.toggle('has-items', hasItems);
     }
   }
-  updateUI(variant) {
+  updateUI(variant, handle = null) {
     if (!variant || !this.selectedComponent) return;
 
     const buttonContainer = document.querySelector('.button-container');
@@ -1173,16 +1254,16 @@ getMatchingVariantFromSelections(selectedOptions) {
             }
       }
 
-    // Update layer image only for required components
-    if (!isOptionalComponent) {
-      const layerId = `layer-${this.selectedComponent.handle}`;
-      const layerImage = document.getElementById(layerId);
-      if (layerImage) {
-        // Use layer_image if it exists, otherwise fall back to the regular variant image
-        const layerImageUrl = variant.layer_image || imageUrl;
-        layerImage.src = layerImageUrl;
-        layerImage.classList.add('visible');
-      }
+    // Update layer image and ensure visibility
+    const layerId = `layer-${this.selectedComponent.handle}`;
+    const layerImage = document.getElementById(layerId);
+    if (layerImage) {
+      // Use layer_image if it exists, otherwise fall back to the regular variant image
+      const layerImageUrl = variant.layer_image || imageUrl;
+      layerImage.src = layerImageUrl;
+      // Ensure the layer is visible, regardless of initial state
+      layerImage.classList.remove('hidden');
+      layerImage.classList.add('visible');
     }
 
     // Store this as the initial state only for required components
@@ -1241,11 +1322,26 @@ applyConfig() {
   // Save back
   this.selectedVariants.set(handle, list);
 
+
+
   // Rest of the flow stays the same
   this.updateAllComponentStatuses();
   this.updateConfiguratorSummary();
   this.updateTotalPrice();
   this.evaluateConflicts();
+
+  // Provide user feedback on the button
+  const button = container.querySelector('.apply-selection-button');
+  if (button) {
+    const textElement = button.querySelector('span') || button;
+    const originalText = textElement.textContent;
+    textElement.textContent = 'Added!';
+    button.disabled = true; // Prevent spamming
+    setTimeout(() => {
+      textElement.textContent = originalText;
+      button.disabled = false;
+    }, 1500);
+  }
 
   if (this.selectedVariant.available) {
     this.showToast(`${this.selectedComponent.title} added successfully`, 'success');
@@ -1367,60 +1463,45 @@ updateAllComponentStatuses() {
   this.evaluateConflicts();
   }
   updateSelectedVariant(context = "desktop") {
+    console.log(`[updateSelectedVariant] Called for component: ${this.selectedComponent.handle}`);
     if (!this.selectedComponent) return null;
 
-    // Select dropdowns based on context
-    const dropdowns = context === "desktop"
-        ? document.querySelectorAll('.options-grid .option-select')
-        : document.querySelectorAll('.mobile-component-card.active .mobile-option-select');
+    const containerSelector = context === "desktop" 
+        ? '.options-grid' 
+        : '.mobile-carousel-track .mobile-component-card.active .mobile-card-options';
+    const container = document.querySelector(containerSelector);
+    if (!container) return null;
 
-    // Gather current selected values from dropdowns (ignoring empty selections)
-    const selectedOptions = Array.from(dropdowns)
-        .map(select => select.value)
-        .filter(val => val !== '');
+    const dropdowns = Array.from(container.querySelectorAll(context === "desktop" ? ".option-select" : ".mobile-option-select"));
+    const selectedOptions = dropdowns.map(d => d.value);
 
-    // Determine the container that holds the apply button.
-    // For desktop, assume the container is the .options-grid; for mobile, it is within the active mobile card.
-    let container;
-    if (context === "desktop") {
-      container = document.querySelector('.options-grid');
-    } else {
-      container = document.querySelector('.mobile-component-card.active .mobile-card-options');
-    }
+    // Save selections
+    const handle = this.selectedComponent.isOptionalSelection 
+        ? `${this.selectedComponent.handle}-optional` 
+        : this.selectedComponent.handle;
+    this.componentSelections.set(handle, selectedOptions);
+    console.log(`[DEBUG] Saved selections for ${handle}:`, selectedOptions);
 
-    // If not all options are selected, disable the apply button and exit.
-    if (selectedOptions.length !== this.selectedComponent.options.length) {
-      if (container) {
-        const applyButton = container.querySelector('.apply-selection-button');
-        if (applyButton) {
-          applyButton.disabled = true;
-        }
-      }
-      return null;
-    }
+    // Find the matching variant
+    const variant = this.getMatchingVariantFromSelections(selectedOptions);
+    this.selectedVariant = variant;
 
-    // Use a reusable helper to get the matching variant.
-    // (Assuming you have a function getMatchingVariantFromSelections(selectedOptions) that returns a variant or null)
-    const matchingVariant = this.getMatchingVariantFromSelections(selectedOptions);
-
-    // Update the apply button state based on whether a valid variant was found.
-    if (container) {
-      const applyButton = container.querySelector('.apply-selection-button');
-      if (applyButton) {
-        applyButton.disabled = matchingVariant ? false : true;
-      }
+    // Update apply button state
+    const applyButton = container.querySelector('.apply-selection-button');
+    if (applyButton) {
+        applyButton.disabled = !variant;
     }
 
     // If a valid variant was found, update the UI accordingly.
-    if (matchingVariant) {
-      this.selectedVariant = matchingVariant;
-      this.updateUI(matchingVariant);
+    if (variant) {
+      this.updateUI(variant, handle);
     }
 
-    return matchingVariant;
-}
+    return variant;
+  }
 
-  handleVariantChange(event, context = "desktop") {
+    handleVariantChange(event, context = "desktop") {
+    if (this.isProgrammaticChange) return;
       const select = event.target;
       const position = parseInt(select.dataset.position, 10);
       const selectedValue = select.value;
@@ -1456,6 +1537,7 @@ updateAllComponentStatuses() {
       const availableOptions = this.getAvailableOptionsForPosition(nextPosition, selectedValues, context);
 
       // **Populate next dropdown**
+      this.updateSelectedVariant(context); // Ensure selections are saved after a variant change
       const nextDropdown = [...dropdowns].find(dropdown => parseInt(dropdown.dataset.position) === nextPosition);
       if (nextDropdown) {
           availableOptions.forEach(value => {
@@ -2125,12 +2207,14 @@ switchTab(tab) {
   const newCard = activeWrapper.querySelector('.component-card');
   if (newCard) newCard.classList.add('selected');
 
-  // 7. If this wasn’t already configured, refresh its dropdowns
-  const wasConfigured = this.selectedVariants.has(activeWrapper.dataset.handle);
-  if (!wasConfigured) {
-    this.updateOptionsGrid("carousel");
+  // 7. Always refresh dropdowns and restore selections to ensure consistency
+  this.isProgrammaticChange = true;
+  this.updateOptionsGrid("carousel");
+  setTimeout(async () => {
+    await this.restoreDropdownSelections(activeWrapper.dataset.handle, "carousel", activeWrapper);
+    this.isProgrammaticChange = false;
     this.updateSelectedVariant("carousel");
-  }
+  }, 250);
 }
 
   /**
@@ -3164,4 +3248,4 @@ document.querySelectorAll('.clarify-info-icon').forEach(icon => {
 closeBtn.addEventListener('click', () => clarifyModal.style.display = 'none');
 clarifyModal.addEventListener('click', e => {
   if (e.target === clarifyModal) clarifyModal.style.display = 'none';
-}); 
+});
