@@ -300,6 +300,68 @@
   opacity: 1;
 }
 
+/* View Toggle Pill */
+.view-toggle-container {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  z-index: 101; /* Above TOP_LAYER images which use z-index: 100 */
+}
+
+.view-toggle-pill {
+  display: flex;
+  background: rgba(255, 255, 255, 0.95);
+  border: 2px solid #000;
+  border-radius: 100px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.view-toggle-option {
+  padding: 8px 16px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: var(--color_text, #000);
+  transition: all 0.2s ease;
+}
+
+.view-toggle-option[data-option="above"] {
+  border-right: 1px solid #000;
+}
+
+.view-toggle-option:hover:not(.active) {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.view-toggle-option.active {
+  background: #000;
+  color: #fff;
+}
+
+/* Underside Top Layer (Clipping Mask) */
+.underside-top-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 100 !important;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.3s ease-in-out;
+}
+
+/* Layer transition for view switching */
+.component-layer {
+  transition: opacity 0.3s ease-in-out, z-index 0s;
+}
+
 .preview-container {
   position: relative;
   width: 100%;
@@ -1021,6 +1083,14 @@
   cursor: not-allowed;
 }
 
+.add-to-cart-button.extras-preorder .preorder-status-note {
+  display: block;
+  margin-top: 0.125rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
 /* Buttons */
 .button {
   display: block;
@@ -1331,6 +1401,17 @@ h3,
     position: sticky;
     top: 0;
     z-index: 1;
+  }
+
+  /* View Toggle Mobile Styles */
+  .view-toggle-container {
+    top: 0.5rem;
+    right: 0.5rem;
+  }
+
+  .view-toggle-option {
+    padding: 6px 10px;
+    font-size: 10px;
   }
 }
 
