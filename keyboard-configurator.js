@@ -5,8 +5,6 @@ class ProductConfigurator {
 constructor() {
   this.data = JSON.parse(document.getElementById('configurator-data').textContent);
 
-  console.log('💾 Loaded configurator-data:', this.data);
-  console.log('🔧 Parsed conflicts:', this.data.conflicts);
 
     this.parentProductTitle = this.data.parentProductTitle;
     this.components = this.data.components;
@@ -27,6 +25,17 @@ constructor() {
     this.isMobileLayout = this.checkIsMobile();
   this.currencySymbol = (this.data && this.data.currencySymbol) ? this.data.currencySymbol : '$';
   this.preorderStatus = this.data.preorderStatus || 'live';
+  this.isPreorderProduct = !!this.data.isPreorderProduct;
+  this.isExtrasPreorder = !!this.data.extrasPreorder;
+  this.isLimitedPreorder = !!this.data.isLimitedPreorder;
+  this.preorderStatusLabel = this.data.preorderStatusLabel || null;
+  this.preorderEndsDisplay = this.data.preorderEndsDisplay || null;
+  this.preorderHideEnd = !!this.data.preorderHideEnd;
+  this.preorderTimeline = this.data.preorderTimeline || null;
+  this.preorderUpdate = this.data.preorderUpdate || null;
+  this.preorderAgreementText = this.data.preorderAgreementText || null;
+  this.preorderShowAgreement = !!this.data.preorderShowAgreement;
+  this.preorderEstimatedArrival = this.data.preorderEstimatedArrival || null;
     
     // Carousel-related properties
     this.carouselIndex = 0;      // which card is currently “in front”
@@ -36,7 +45,11 @@ constructor() {
     this.carouselCurrentX = 0;   // current X for swipe
     
     this.initialIsMobile = this.checkIsMobile();
-    
+
+    // View toggle state
+    this.currentView = 'above'; // 'above' or 'underside'
+    this.totalLayers = this.components.length;
+
     // Set up event delegation for quantity changes
     document.addEventListener('input', (e) => {
       if (e.target.classList.contains('variant-quantity')) {
@@ -84,6 +97,7 @@ constructor() {
     this.setupRemoveButton();
     this.initializeEventListeners();
     this.preloadAllVariantImages();
+    this.initializeViewToggle();
 
     // Check if cart has items and show view cart link if it does
     fetch('/cart.js')
@@ -110,7 +124,11 @@ constructor() {
       }
     });
 
-    
+    // Select the first required component on page load
+    const firstRequiredComponent = this.components.find(c => c.required);
+    if (firstRequiredComponent && firstRequiredComponent.handle) {
+      this.selectComponent(firstRequiredComponent.handle, true);
+    }
 
     // Add navigation button listeners
     const prevButton = document.querySelector('.prev-component');
@@ -209,6 +227,16 @@ if (activeTab) activeTab.click();
       if (variant.layer_image) {
         imagesToPreload.push(variant.layer_image);
       }
+      // Add view-specific layer images
+      if (variant.above_layer_image) {
+        imagesToPreload.push(variant.above_layer_image);
+      }
+      if (variant.underside_layer_image) {
+        imagesToPreload.push(variant.underside_layer_image);
+      }
+      if (variant.underside_top_layer_image) {
+        imagesToPreload.push(variant.underside_top_layer_image);
+      }
     });
   });
   
@@ -243,7 +271,217 @@ if (activeTab) activeTab.click();
   console.log(`Preloading ${uniqueImages.length} images in the background`);
 }
 
-  
+  //#region View Toggle Methods
+  initializeViewToggle() {
+    const viewTogglePill = document.querySelector('.view-toggle-pill');
+    if (!viewTogglePill) return;
+
+    const toggleOptions = viewTogglePill.querySelectorAll('.view-toggle-option');
+    toggleOptions.forEach(option => {
+      option.addEventListener('click', () => {
+        const newView = option.dataset.option;
+        if (newView !== this.currentView) {
+          this.setView(newView);
+        }
+      });
+    });
+
+    // Check if any component has DISTINCT underside images (not just fallback to same image)
+    const hasDistinctUndersideImages = this.components.some(component =>
+      component.variants.some(v =>
+        v.underside_layer_image &&
+        v.above_layer_image &&
+        v.underside_layer_image !== v.above_layer_image
+      )
+    );
+
+    // Hide toggle if no distinct underside images available (legacy configurator)
+    if (!hasDistinctUndersideImages) {
+      const container = viewTogglePill.closest('.view-toggle-container');
+      if (container) {
+        container.style.display = 'none';
+      }
+    }
+  }
+
+  setView(view) {
+    const container = document.querySelector('.preview-image-container');
+    const viewTogglePill = document.querySelector('.view-toggle-pill');
+    const toggleOptions = viewTogglePill?.querySelectorAll('.view-toggle-option');
+
+    this.currentView = view;
+    viewTogglePill?.setAttribute('data-view', view);
+
+    // Update active state on options
+    toggleOptions?.forEach(option => {
+      if (option.dataset.option === view) {
+        option.classList.add('active');
+      } else {
+        option.classList.remove('active');
+      }
+    });
+
+    if (view === 'underside') {
+      container?.classList.add('underside-view');
+    } else {
+      container?.classList.remove('underside-view');
+    }
+
+    // Update all layer images and z-indices
+    this.updateAllLayersForView();
+  }
+
+  updateAllLayersForView() {
+    this.components.forEach((component, index) => {
+      const layerElement = document.getElementById(`layer-${component.handle}`);
+      if (!layerElement) return;
+
+      // Get current variant for this component
+      let variant = null;
+
+      // First check selectedVariants (confirmed selections added to configuration)
+      const currentVariants = this.selectedVariants.get(component.handle);
+      if (currentVariants) {
+        variant = Array.isArray(currentVariants) ? currentVariants[0] : currentVariants;
+      }
+
+      // Check if this is the currently previewed component (selected but not yet added)
+      if (!variant && this.selectedComponent && this.selectedComponent.handle === component.handle && this.selectedVariant) {
+        variant = this.selectedVariant;
+      }
+
+      // Check componentSelections for other components with dropdown selections
+      // Only use if ALL dropdowns are filled (not partial selections)
+      if (!variant) {
+        const savedSelections = this.componentSelections.get(component.handle);
+        if (savedSelections && savedSelections.length > 0 && savedSelections.every(s => s && s !== '')) {
+          // Find the matching variant from saved dropdown selections
+          variant = component.variants.find(v => {
+            const variantOptions = v.title.split(' / ').map(opt => opt.trim());
+            return savedSelections.every((selection, idx) => {
+              return variantOptions[idx] === selection;
+            });
+          });
+        }
+      }
+
+      if (variant) {
+        // Update layer image source based on view
+        this.updateLayerImageForView(component, variant, layerElement);
+      } else {
+        // No variant selected - swap to appropriate blueprint
+        this.updateBlueprintForView(layerElement);
+      }
+
+      // Update z-index based on view
+      this.updateLayerZIndex(layerElement, index);
+    });
+
+    // Handle underside top layers (clipping masks)
+    this.updateUndersideTopLayers();
+  }
+
+  updateBlueprintForView(layerElement) {
+    const aboveBlueprint = layerElement.dataset.blueprintAbove;
+    const undersideBlueprint = layerElement.dataset.blueprintUnderside;
+
+    let blueprintUrl;
+    if (this.currentView === 'underside' && undersideBlueprint) {
+      blueprintUrl = undersideBlueprint;
+    } else if (aboveBlueprint) {
+      blueprintUrl = aboveBlueprint;
+    }
+
+    if (blueprintUrl && layerElement.src !== blueprintUrl) {
+      layerElement.src = blueprintUrl;
+    }
+  }
+
+  updateLayerImageForView(component, variant, layerElement) {
+    let imageUrl;
+
+    if (this.currentView === 'underside' && variant.underside_layer_image) {
+      imageUrl = variant.underside_layer_image;
+    } else if (variant.above_layer_image) {
+      imageUrl = variant.above_layer_image;
+    } else {
+      // Fallback to legacy layer_image
+      imageUrl = variant.layer_image || variant.featured_image;
+    }
+
+    if (imageUrl && layerElement.src !== imageUrl) {
+      layerElement.src = imageUrl;
+    }
+  }
+
+  updateLayerZIndex(layerElement, originalIndex) {
+    // originalIndex is 0-based
+    // In above view: z-index goes 1, 2, 3, 4, 5 (ascending)
+    // In underside view: z-index goes totalLayers, totalLayers-1, ... 1 (descending)
+
+    let zIndex;
+    if (this.currentView === 'above') {
+      zIndex = originalIndex + 1;
+    } else {
+      zIndex = this.totalLayers - originalIndex;
+    }
+
+    layerElement.style.zIndex = zIndex;
+  }
+
+  updateUndersideTopLayers() {
+    // Remove any existing underside top layers first
+    document.querySelectorAll('.underside-top-layer').forEach(el => el.remove());
+
+
+    if (this.currentView !== 'underside') return;
+
+    const container = document.querySelector('.preview-image-container');
+    if (!container) return;
+
+    // Find components with underside_top_layer_image and create overlay elements
+    this.components.forEach(component => {
+      let variant = null;
+
+      // Check selectedVariants first (confirmed selections)
+      const currentVariants = this.selectedVariants.get(component.handle);
+      if (currentVariants) {
+        variant = Array.isArray(currentVariants) ? currentVariants[0] : currentVariants;
+      }
+
+      // Check current preview
+      if (!variant && this.selectedComponent && this.selectedComponent.handle === component.handle && this.selectedVariant) {
+        variant = this.selectedVariant;
+      }
+
+      // Check componentSelections for saved dropdown values
+      // Only use if ALL dropdowns are filled (not partial selections)
+      if (!variant) {
+        const savedSelections = this.componentSelections.get(component.handle);
+        if (savedSelections && savedSelections.length > 0 && savedSelections.every(s => s && s !== '')) {
+          variant = component.variants.find(v => {
+            const variantOptions = v.title.split(' / ').map(opt => opt.trim());
+            return savedSelections.every((selection, idx) => {
+              return variantOptions[idx] === selection;
+            });
+          });
+        }
+      }
+
+      if (variant?.underside_top_layer_image) {
+        const topLayerImg = document.createElement('img');
+        topLayerImg.classList.add('component-layer', 'underside-top-layer');
+        topLayerImg.id = `underside-top-layer-${component.handle}`;
+        topLayerImg.src = variant.underside_top_layer_image;
+        topLayerImg.alt = `${component.title} top layer`;
+        topLayerImg.style.zIndex = 100; // Always highest
+        container.appendChild(topLayerImg);
+      }
+    });
+  }
+  //#endregion
+
+
    initializeEventListeners() {
     // Add apply button listener
     // const applyButton = document.querySelector('.apply-selection-button');
@@ -567,23 +805,26 @@ initializeSpecsAccordion() {
         visibilityToggle.addEventListener('click', (e) => {
           e.preventDefault();
           e.stopPropagation();
-          
+
           const layerImage = document.getElementById(`layer-${componentId}`);
+          const topLayerImage = document.getElementById(`underside-top-layer-${componentId}`);
           const eyeVisible = visibilityToggle.querySelector('.eye-visible');
           const eyeHidden = visibilityToggle.querySelector('.eye-hidden');
-          
+
           if (layerImage && eyeVisible && eyeHidden) {
             const isVisible = !layerImage.classList.contains('hidden');
-            
+
             // Toggle layer visibility and icon states
             if (isVisible) {
               // Hide the layer and show the crossed-out eye
               layerImage.classList.add('hidden');
+              if (topLayerImage) topLayerImage.classList.add('hidden');
               eyeVisible.classList.add('hidden');
               eyeHidden.classList.remove('hidden');
             } else {
               // Show the layer and show the normal eye
               layerImage.classList.remove('hidden');
+              if (topLayerImage) topLayerImage.classList.remove('hidden');
               eyeVisible.classList.remove('hidden');
               eyeHidden.classList.add('hidden');
             }
@@ -617,7 +858,6 @@ initializeSpecsAccordion() {
 }
 
 selectComponent(handle, force = false) {
-    console.log(`[selectComponent] Called with handle: ${handle}, force: ${force}`);
     // Check if the component is already selected, if so, ignore the click unless forced
     if (!force && this.selectedComponent && this.selectedComponent.handle === handle.replace(/-optional$/, '')) {
         return;
@@ -726,8 +966,6 @@ selectComponent(handle, force = false) {
     });
   }
   getAvailableOptionsForPosition(position, selectedValues, context = "desktop") {
-    console.log(`[getAvailableOptionsForPosition] Called for position: ${position}, context: ${context}`);
-    console.log('[getAvailableOptionsForPosition] selectedValues:', selectedValues);
   // If no component or variants are loaded, bail out.
   if (!this.selectedComponent || !this.selectedComponent.variants) {
     return [];
@@ -830,13 +1068,10 @@ selectComponent(handle, force = false) {
   }
 
   async restoreDropdownSelections(handle, context = "desktop", targetCardElement = null) {
-    console.log(`[DEBUG] Attempting to restore selections for component: ${handle}, context: ${context}`);
     const savedSelections = this.componentSelections.get(handle);
     if (!savedSelections || savedSelections.length === 0) {
-        console.log(`[DEBUG] No saved selections found for ${handle} or selections are empty.`);
         return;
     }
-    console.log(`[DEBUG] Saved selections for ${handle}:`, savedSelections);
 
     let container;
     if (context === "desktop") {
@@ -844,35 +1079,27 @@ selectComponent(handle, force = false) {
     } else if (targetCardElement) {
         container = targetCardElement.querySelector('.mobile-card-options');
     } else {
-        // Fallback if targetCardElement is not provided for mobile, though it should be
         container = document.querySelector('.mobile-carousel-track .mobile-component-card.active .mobile-card-options');
     }
     if (!container) {
-        console.log(`[DEBUG] Container not found for context: ${context}`);
         return;
     }
-    console.log(`[DEBUG] Container found:`, container);
 
     const dropdowns = Array.from(container.querySelectorAll(context === "desktop" ? ".option-select" : ".mobile-option-select"));
-    console.log(`[DEBUG] Found dropdowns:`, dropdowns);
 
     for (let i = 0; i < dropdowns.length; i++) {
         const dropdown = dropdowns[i];
         const savedValue = savedSelections[i];
-        console.log(`[DEBUG] Processing dropdown ${i}:`, dropdown, `Saved value: ${savedValue}`);
 
         if (savedValue) {
             await new Promise(resolve => setTimeout(resolve, 50));
             const options = Array.from(dropdown.options);
             const optionExists = options.some(opt => opt.value === savedValue);
-            console.log(`[DEBUG] Option '${savedValue}' exists in dropdown options:`, optionExists, options);
 
             if (optionExists) {
                 dropdown.value = savedValue;
                 dropdown.dispatchEvent(new Event('change', { bubbles: true }));
-                console.log(`[DEBUG] Set dropdown ${i} value to '${savedValue}' and dispatched change event.`);
             } else {
-                console.log(`[DEBUG] Option '${savedValue}' not found in dropdown ${i}. Stopping restoration for this component.`);
                 break;
             }
         }
@@ -903,8 +1130,6 @@ selectComponent(handle, force = false) {
     }, 200);
   }
 updateOptionsContent(container, context = "desktop") {
-  console.log(`[updateOptionsContent] Called for context: ${context}, selectedComponent:`, this.selectedComponent);
-  console.log('[updateOptionsContent] Container:', container);
   container.innerHTML = '';
   const selectedValues = new Map();
 
@@ -918,8 +1143,6 @@ updateOptionsContent(container, context = "desktop") {
       }
     });
   }
-
-  if (!this.selectedComponent || !this.selectedComponent.options) return;
 
   const optionsContainer = document.querySelector('.options-container');
   if (!optionsContainer) return;
@@ -990,7 +1213,7 @@ updateOptionsContent(container, context = "desktop") {
   }
 
   // NEW: Restore "Add to Configuration" button for optional components
-  if (this.preorderStatus === 'live') {
+  if (this.preorderStatus === 'live' || this.isExtrasPreorder) {
       const applyButton = document.createElement("button");
       applyButton.textContent = "Add to Configuration";
       applyButton.className = "apply-selection-button";
@@ -1258,12 +1481,26 @@ getMatchingVariantFromSelections(selectedOptions) {
     const layerId = `layer-${this.selectedComponent.handle}`;
     const layerImage = document.getElementById(layerId);
     if (layerImage) {
-      // Use layer_image if it exists, otherwise fall back to the regular variant image
-      const layerImageUrl = variant.layer_image || imageUrl;
+      // Choose image based on current view
+      let layerImageUrl;
+      if (this.currentView === 'underside' && variant.underside_layer_image) {
+        layerImageUrl = variant.underside_layer_image;
+      } else if (variant.above_layer_image) {
+        layerImageUrl = variant.above_layer_image;
+      } else {
+        // Fallback to legacy layer_image or featured image
+        layerImageUrl = variant.layer_image || imageUrl;
+      }
+
       layerImage.src = layerImageUrl;
       // Ensure the layer is visible, regardless of initial state
       layerImage.classList.remove('hidden');
       layerImage.classList.add('visible');
+
+      // Update underside top layers if in underside view
+      if (this.currentView === 'underside') {
+        this.updateUndersideTopLayers();
+      }
     }
 
     // Store this as the initial state only for required components
@@ -1298,7 +1535,7 @@ applyConfig() {
   });
 }
   applySelection(applyButton, container) {
-  if (this.preorderStatus && this.preorderStatus !== 'live') return;
+  if (this.preorderStatus && this.preorderStatus !== 'live' && !this.isExtrasPreorder) return;
   if (!this.selectedComponent || !this.selectedVariant) return;
 
   const handle = this.selectedComponent.handle;
@@ -1463,11 +1700,10 @@ updateAllComponentStatuses() {
   this.evaluateConflicts();
   }
   updateSelectedVariant(context = "desktop") {
-    console.log(`[updateSelectedVariant] Called for component: ${this.selectedComponent.handle}`);
     if (!this.selectedComponent) return null;
 
-    const containerSelector = context === "desktop" 
-        ? '.options-grid' 
+    const containerSelector = context === "desktop"
+        ? '.options-grid'
         : '.mobile-carousel-track .mobile-component-card.active .mobile-card-options';
     const container = document.querySelector(containerSelector);
     if (!container) return null;
@@ -1476,11 +1712,10 @@ updateAllComponentStatuses() {
     const selectedOptions = dropdowns.map(d => d.value);
 
     // Save selections
-    const handle = this.selectedComponent.isOptionalSelection 
-        ? `${this.selectedComponent.handle}-optional` 
+    const handle = this.selectedComponent.isOptionalSelection
+        ? `${this.selectedComponent.handle}-optional`
         : this.selectedComponent.handle;
     this.componentSelections.set(handle, selectedOptions);
-    console.log(`[DEBUG] Saved selections for ${handle}:`, selectedOptions);
 
     // Find the matching variant
     const variant = this.getMatchingVariantFromSelections(selectedOptions);
@@ -1512,25 +1747,53 @@ updateAllComponentStatuses() {
           ? document.querySelectorAll('.options-grid .option-select')
           : document.querySelectorAll('.mobile-component-card.active .mobile-option-select');
 
+      // Capture current values of ALL dropdowns before any changes
+      const previousValues = new Map();
+      dropdowns.forEach((dropdown) => {
+          const dropdownPosition = parseInt(dropdown.dataset.position, 10);
+          if (dropdown.value) {
+              previousValues.set(dropdownPosition, dropdown.value);
+          }
+      });
+
+      // Build a test selection with new value for changed dropdown + old values for subsequent
+      const testSelections = [];
+      dropdowns.forEach((dropdown) => {
+          const dropdownPosition = parseInt(dropdown.dataset.position, 10);
+          if (dropdownPosition < position) {
+              testSelections.push(dropdown.value || '');
+          } else if (dropdownPosition === position) {
+              testSelections.push(selectedValue);
+          } else {
+              // Use previous value for subsequent dropdowns
+              testSelections.push(previousValues.get(dropdownPosition) || '');
+          }
+      });
+
+      // Check if a variant exists with the new first selection + old subsequent selections
+      const preserveSubsequent = testSelections.every(v => v && v !== '') && this.isValidVariant(testSelections);
+
       dropdowns.forEach((dropdown, index) => {
           if (dropdown.value) {
               selectedValues.set(index + 1, dropdown.value);
           }
       });
 
-      // Clear all subsequent dropdowns
-      dropdowns.forEach((dropdown) => {
-          const dropdownPosition = parseInt(dropdown.dataset.position, 10);
-          if (dropdownPosition > position) {
-              dropdown.innerHTML = ''; // Reset dropdown options
-              const defaultOption = document.createElement('option');
-              defaultOption.value = '';
-              defaultOption.textContent = `Select ${dropdown.dataset.optionName}`;
-              defaultOption.disabled = true;
-              defaultOption.selected = true;
-              dropdown.appendChild(defaultOption);
-          }
-      });
+      // Clear subsequent dropdowns ONLY if we can't preserve the selection
+      if (!preserveSubsequent) {
+          dropdowns.forEach((dropdown) => {
+              const dropdownPosition = parseInt(dropdown.dataset.position, 10);
+              if (dropdownPosition > position) {
+                  dropdown.innerHTML = ''; // Reset dropdown options
+                  const defaultOption = document.createElement('option');
+                  defaultOption.value = '';
+                  defaultOption.textContent = `Select ${dropdown.dataset.optionName}`;
+                  defaultOption.disabled = true;
+                  defaultOption.selected = true;
+                  dropdown.appendChild(defaultOption);
+              }
+          });
+      }
 
       // **Get available options for the next dropdown**
       const nextPosition = position + 1;
@@ -1539,13 +1802,52 @@ updateAllComponentStatuses() {
       // **Populate next dropdown**
       this.updateSelectedVariant(context); // Ensure selections are saved after a variant change
       const nextDropdown = [...dropdowns].find(dropdown => parseInt(dropdown.dataset.position) === nextPosition);
-      if (nextDropdown) {
+      if (nextDropdown && !preserveSubsequent) {
+          // Only repopulate if we're not preserving
           availableOptions.forEach(value => {
               const optionElement = document.createElement('option');
               optionElement.value = value.split(' - ')[0]; // Extract raw name
               optionElement.textContent = value; // Keep full label
               nextDropdown.appendChild(optionElement);
           });
+      } else if (nextDropdown && preserveSubsequent) {
+          // Repopulate with available options but preserve selection
+          const previousValue = previousValues.get(nextPosition);
+          nextDropdown.innerHTML = '';
+          availableOptions.forEach(value => {
+              const optionElement = document.createElement('option');
+              optionElement.value = value.split(' - ')[0];
+              optionElement.textContent = value;
+              if (optionElement.value === previousValue) {
+                  optionElement.selected = true;
+              }
+              nextDropdown.appendChild(optionElement);
+          });
+          // Recursively update subsequent dropdowns
+          for (let pos = nextPosition + 1; pos <= dropdowns.length; pos++) {
+              const subsequentDropdown = [...dropdowns].find(d => parseInt(d.dataset.position) === pos);
+              if (subsequentDropdown) {
+                  const prevVal = previousValues.get(pos);
+                  const tempSelectedValues = new Map();
+                  for (let i = 1; i < pos; i++) {
+                      const dd = [...dropdowns].find(d => parseInt(d.dataset.position) === i);
+                      if (dd && dd.value) {
+                          tempSelectedValues.set(i, dd.value);
+                      }
+                  }
+                  const opts = this.getAvailableOptionsForPosition(pos, tempSelectedValues, context);
+                  subsequentDropdown.innerHTML = '';
+                  opts.forEach(value => {
+                      const optionElement = document.createElement('option');
+                      optionElement.value = value.split(' - ')[0];
+                      optionElement.textContent = value;
+                      if (optionElement.value === prevVal) {
+                          optionElement.selected = true;
+                      }
+                      subsequentDropdown.appendChild(optionElement);
+                  });
+              }
+          }
       }
 
       // Find matching variant
@@ -2521,7 +2823,7 @@ switchTab(tab) {
   const preorderEnabled = document.querySelector('#cb') !== null;
   if (!addToCartButton) return;
 
-  if (this.preorderStatus && this.preorderStatus !== 'live') {
+  if (this.preorderStatus && this.preorderStatus !== 'live' && !this.isExtrasPreorder) {
     addToCartButton.disabled = true;
     addToCartButton.classList.add('disabled');
     addToCartButton.innerHTML = `Preorder Ended <br> Status: ${this.preorderStatus.toUpperCase()}`;
@@ -2553,9 +2855,15 @@ switchTab(tab) {
   } else {
     addToCartButton.disabled = false;
     addToCartButton.classList.remove('disabled');
+    addToCartButton.classList.toggle('extras-preorder', this.isExtrasPreorder);
     
     // Show appropriate warning icons based on state
-    addToCartButton.innerHTML = 'Add to Cart';
+    let buttonLabel = this.isExtrasPreorder ? 'Add Extras Preorder to Cart' : 'Add to Cart';
+    if (this.isExtrasPreorder && this.preorderStatus && this.preorderStatus !== 'live') {
+      const statusCopy = this.preorderStatusLabel || this.preorderStatus.toString().toUpperCase();
+      buttonLabel = `${buttonLabel}<br><span class="preorder-status-note">Status: ${statusCopy}</span>`;
+    }
+    addToCartButton.innerHTML = buttonLabel;
     
     if (hasConflict) {
       addToCartButton.innerHTML += `
@@ -2578,15 +2886,59 @@ switchTab(tab) {
 
   //#region Utility Methods
   formatComponentTitle(title, isOptionalSelection = false, isRequired = false) {
-    // Remove the parent product name and properly format spaces
-    const normalizedParentTitle = this.parentProductTitle.toLowerCase();
-    const normalizedTitle = title.toLowerCase();
+    // Normalize function to handle spacing variations like "No.2" vs "No. 2"
+    const normalize = (str) => str
+      .toLowerCase()
+      .replace(/\s+/g, ' ')           // Collapse multiple spaces
+      .replace(/\.\s*/g, '.')         // Remove space after periods
+      .replace(/\s*\//g, '/')         // Remove space before slashes
+      .replace(/\/\s*/g, '/')         // Remove space after slashes
+      .trim();
 
-    // Normalize only for comparison to remove the parent product title
-    const baseTitle = title
-        .replace(new RegExp(normalizedParentTitle, 'i'), '') // Remove parent product name (case-insensitive)
-        .replace(/[-_]/g, ' ') // Replace hyphens and underscores with spaces
-        .trim(); // Trim extra whitespace
+    const normalizedParent = normalize(this.parentProductTitle);
+    const normalizedTitle = normalize(title);
+
+    // Check if the normalized title starts with the normalized parent
+    let baseTitle = title;
+    if (normalizedTitle.startsWith(normalizedParent)) {
+      // Find where the parent title ends in the original string
+      // by matching character-by-character with normalization
+      let parentIdx = 0;
+      let titleIdx = 0;
+      const parentLower = this.parentProductTitle.toLowerCase();
+      const titleLower = title.toLowerCase();
+
+      while (parentIdx < parentLower.length && titleIdx < titleLower.length) {
+        // Skip whitespace differences
+        while (titleIdx < titleLower.length && titleLower[titleIdx] === ' ' &&
+               (parentIdx >= parentLower.length || parentLower[parentIdx] !== ' ')) {
+          titleIdx++;
+        }
+        while (parentIdx < parentLower.length && parentLower[parentIdx] === ' ' &&
+               (titleIdx >= titleLower.length || titleLower[titleIdx] !== ' ')) {
+          parentIdx++;
+        }
+
+        if (parentIdx < parentLower.length && titleIdx < titleLower.length) {
+          if (parentLower[parentIdx] === titleLower[titleIdx]) {
+            parentIdx++;
+            titleIdx++;
+          } else {
+            break;
+          }
+        }
+      }
+
+      // Remove the matched portion and clean up
+      baseTitle = title.substring(titleIdx)
+        .replace(/^[\s\-_]+/, '')  // Remove leading separators
+        .trim();
+    }
+
+    baseTitle = baseTitle
+      .replace(/[-_]/g, ' ')  // Replace hyphens and underscores with spaces
+      .trim();
+
     // Only show "Extra" if it's a required component in the optional tab
     return (isOptionalSelection && isRequired) ? `Extra ${baseTitle}` : baseTitle;
   }
@@ -2715,8 +3067,20 @@ switchTab(tab) {
     const layerImage = document.getElementById(layerId);
     if (layerImage) {
       layerImage.classList.remove('visible');
-      if (this.showPlaceholders && component.blueprint) {
-        layerImage.src = component.blueprint;
+      if (this.showPlaceholders) {
+        // Use appropriate blueprint based on current view
+        let blueprintUrl;
+        if (this.currentView === 'underside' && component.underside_blueprint) {
+          blueprintUrl = component.underside_blueprint;
+        } else if (component.blueprint) {
+          blueprintUrl = component.blueprint;
+        }
+
+        if (blueprintUrl) {
+          layerImage.src = blueprintUrl;
+        } else {
+          layerImage.src = '';
+        }
       } else {
         layerImage.src = '';
       }
@@ -2811,7 +3175,7 @@ switchTab(tab) {
 
   //#region Cart Management
   async addConfigurationToCart() {
-    if (this.preorderStatus && this.preorderStatus !== 'live') {
+    if (this.preorderStatus && this.preorderStatus !== 'live' && !this.isExtrasPreorder) {
       return;
     }
     const bundleId = Date.now().toString();
@@ -2857,12 +3221,8 @@ switchTab(tab) {
         const layerImage = document.getElementById(layerId);
         const componentImage = layerImage?.classList.contains('visible') ? layerImage.src : null;
 
-        // Strip parent product title from component title
-        const componentTitle = component.title
-          .replace(`${this.parentProductTitle} - `, '')
-          .replace(`${this.parentProductTitle} `, '')
-          .replace(this.parentProductTitle, '')
-          .trim();
+        // Strip parent product title from component title (use formatComponentTitle for consistent handling)
+        const componentTitle = this.formatComponentTitle(component.title);
 
         // Get existing entry or create new one
         const existingEntry = combinedVariants.get(v.id) || {
